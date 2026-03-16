@@ -39,20 +39,30 @@ export function calculateMasteryDelta(params: {
   isCorrect: boolean
   hintsUsed: number
   correctStreak: number
+  // Board exam: 0–100 partial credit percentage (undefined = MCQ binary)
+  partialCredit?: number
 }): number {
-  const { isCorrect, hintsUsed, correctStreak } = params
+  const { isCorrect, hintsUsed, correctStreak, partialCredit } = params
 
+  // Board exam question — use proportional scoring
+  if (partialCredit !== undefined) {
+    if (partialCredit >= 100) {
+      // Full marks — same as MCQ correct
+      return hintsUsed === 0 ? 15 : hintsUsed === 1 ? 10 : 5
+    }
+    if (partialCredit >= 60) return 8   // Good attempt (e.g. 2/3)
+    if (partialCredit >= 30) return 3   // Partial understanding
+    if (partialCredit > 0)   return 0   // Minimal credit — no gain, no loss
+    return -3                           // Zero marks — small penalty
+  }
+
+  // MCQ — binary
   if (!isCorrect) return -5
 
-  let points = 0
-  if (hintsUsed === 0) points = 15
-  else if (hintsUsed === 1) points = 10
-  else points = 5
+  let points = hintsUsed === 0 ? 15 : hintsUsed === 1 ? 10 : 5
 
   // Streak bonus: 3 correct in a row
-  if (correctStreak > 0 && correctStreak % 3 === 0) {
-    points += 10
-  }
+  if (correctStreak > 0 && correctStreak % 3 === 0) points += 10
 
   return points
 }
@@ -69,9 +79,15 @@ export function calculateXPEarned(params: {
   isCorrect: boolean
   conceptMasteredNow: boolean
   wasAlreadyMastered: boolean
+  partialCredit?: number
 }): number {
   let xp = 0
-  if (params.isCorrect) xp += 5
+  if (params.partialCredit !== undefined) {
+    // Board: XP proportional to marks (max 10 XP for full marks)
+    xp += Math.round((params.partialCredit / 100) * 10)
+  } else if (params.isCorrect) {
+    xp += 5
+  }
   if (params.conceptMasteredNow && !params.wasAlreadyMastered) xp += 50
   return xp
 }

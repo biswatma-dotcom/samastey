@@ -79,7 +79,8 @@ export async function POST(req: NextRequest) {
     where: { studentId: student.id, conceptId },
   })
 
-  const delta = calculateMasteryDelta({ isCorrect, hintsUsed, correctStreak })
+  const partialCredit = isBoardQuestion ? (evaluation.partialCredit as number | undefined) : undefined
+  const delta = calculateMasteryDelta({ isCorrect, hintsUsed, correctStreak, partialCredit })
   const currentScore = currentRecord?.masteryScore ?? 0
   const newScore = calculateNewMasteryScore(currentScore, delta)
   const masteryAchievedNow = newScore >= 80
@@ -100,7 +101,7 @@ export async function POST(req: NextRequest) {
     }),
   ])
 
-  const xpEarned = calculateXPEarned({ isCorrect, conceptMasteredNow: masteryAchievedNow, wasAlreadyMastered })
+  const xpEarned = calculateXPEarned({ isCorrect, conceptMasteredNow: masteryAchievedNow, wasAlreadyMastered, partialCredit })
   if (xpEarned > 0) await updateStudentXP(student.id, xpEarned)
 
   return NextResponse.json({
