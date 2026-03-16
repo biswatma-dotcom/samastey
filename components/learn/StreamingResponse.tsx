@@ -48,51 +48,53 @@ export function StreamingResponse({ content, isStreaming, className }: Streaming
   const endRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
-    if (isStreaming) {
+    if (!isStreaming) return
+    // Scroll at most once per second to avoid layout thrashing
+    const id = setTimeout(() => {
       endRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' })
-    }
+    }, 1000)
+    return () => clearTimeout(id)
   }, [content, isStreaming])
 
   return (
     <div className={cn('relative', className)}>
-      <div className="prose prose-orange dark:prose-invert max-w-none text-sm leading-relaxed">
-        <ReactMarkdown
-          remarkPlugins={[remarkGfm, remarkMath]}
-          rehypePlugins={[rehypeKatex]}
-          components={{
-            code({ node, className: cls, children, ...props }) {
-              const lang = cls?.replace('language-', '') ?? ''
-
-              if (lang === 'mermaid') {
-                return <MermaidDiagram chart={String(children).trim()} />
-              }
-
-              if (lang === 'svg') {
-                return <SVGDiagram code={String(children).trim()} />
-              }
-
-              return (
-                <code
-                  className={cn(
-                    'rounded bg-orange-50 px-1 py-0.5 text-orange-800 dark:bg-orange-950 dark:text-orange-200',
-                    cls
-                  )}
-                  {...props}
-                >
-                  {children}
-                </code>
-              )
-            },
-            strong({ children }) {
-              return <strong className="font-semibold text-orange-700 dark:text-orange-300">{children}</strong>
-            },
-          }}
-        >
-          {preprocessContent(content)}
-        </ReactMarkdown>
-      </div>
-      {isStreaming && (
-        <span className="ml-1 inline-block h-4 w-0.5 animate-pulse bg-orange-600" />
+      {isStreaming ? (
+        // During streaming: plain pre-formatted text — no expensive markdown parsing
+        <pre className="whitespace-pre-wrap font-sans text-sm leading-relaxed text-gray-800 dark:text-gray-200">
+          {content}
+          <span className="ml-1 inline-block h-4 w-0.5 animate-pulse bg-orange-600 align-middle" />
+        </pre>
+      ) : (
+        // After done: full markdown + math rendering
+        <div className="prose prose-orange dark:prose-invert max-w-none text-sm leading-relaxed">
+          <ReactMarkdown
+            remarkPlugins={[remarkGfm, remarkMath]}
+            rehypePlugins={[rehypeKatex]}
+            components={{
+              code({ node, className: cls, children, ...props }) {
+                const lang = cls?.replace('language-', '') ?? ''
+                if (lang === 'mermaid') return <MermaidDiagram chart={String(children).trim()} />
+                if (lang === 'svg') return <SVGDiagram code={String(children).trim()} />
+                return (
+                  <code
+                    className={cn(
+                      'rounded bg-orange-50 px-1 py-0.5 text-orange-800 dark:bg-orange-950 dark:text-orange-200',
+                      cls
+                    )}
+                    {...props}
+                  >
+                    {children}
+                  </code>
+                )
+              },
+              strong({ children }) {
+                return <strong className="font-semibold text-orange-700 dark:text-orange-300">{children}</strong>
+              },
+            }}
+          >
+            {preprocessContent(content)}
+          </ReactMarkdown>
+        </div>
       )}
       <div ref={endRef} />
     </div>

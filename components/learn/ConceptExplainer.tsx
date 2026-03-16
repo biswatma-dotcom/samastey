@@ -45,15 +45,24 @@ export function ConceptExplainer({ conceptId, conceptTitle, objectives }: Concep
     const reader = res.body.getReader()
     const decoder = new TextDecoder()
     let full = ''
+    let rafPending = false
+
+    function scheduleUpdate() {
+      if (rafPending) return
+      rafPending = true
+      requestAnimationFrame(() => {
+        rafPending = false
+        const snapshot = full
+        setThread((prev) => prev.map((t) => t.id === id ? { ...t, content: snapshot } : t))
+      })
+    }
 
     try {
       while (true) {
         const { done, value } = await reader.read()
         if (done) break
         full += decoder.decode(value, { stream: true })
-        setThread((prev) => prev.map((t) =>
-          t.id === id ? { ...t, content: full } : t
-        ))
+        scheduleUpdate()
       }
     } catch {
       // Stream error (e.g. API content filter or network drop)

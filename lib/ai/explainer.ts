@@ -14,7 +14,7 @@ export function streamExplanation(params: {
   language?: Language
 }): ReadableStream<Uint8Array> {
   const prompt = EXPLAIN_CONCEPT(params)
-  return sarvamStream({ messages: [{ role: 'user', content: prompt }], max_tokens: 32000 })
+  return sarvamStream({ messages: [{ role: 'user', content: prompt }], max_tokens: 8000 })
 }
 
 export function streamAlternateExplanation(params: {
@@ -24,7 +24,7 @@ export function streamAlternateExplanation(params: {
   language?: Language
 }): ReadableStream<Uint8Array> {
   const prompt = EXPLAIN_DIFFERENTLY(params)
-  return sarvamStream({ messages: [{ role: 'user', content: prompt }], max_tokens: 16000 })
+  return sarvamStream({ messages: [{ role: 'user', content: prompt }], max_tokens: 5000 })
 }
 
 export function streamAnswer(params: {
@@ -36,7 +36,7 @@ export function streamAnswer(params: {
   language?: Language
 }): ReadableStream<Uint8Array> {
   const prompt = ANSWER_STUDENT_QUESTION(params)
-  return sarvamStream({ messages: [{ role: 'user', content: prompt }], max_tokens: 16000 })
+  return sarvamStream({ messages: [{ role: 'user', content: prompt }], max_tokens: 5000 })
 }
 
 export async function generateHint(params: {
