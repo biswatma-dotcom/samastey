@@ -75,6 +75,7 @@ DIAGRAM AND VISUALIZATION RULES — use when they genuinely aid understanding:
    viewBox="0 0 300 200", use line/circle/rect/polygon/polyline/text/path only.
    Include clear labels. No scripts, no external references.
 
+ABSOLUTELY FORBIDDEN: Never use ASCII art (characters like /, \, |, -, = to draw shapes). ASCII art is unreadable and useless. Use SVG, chart, or mermaid instead.
 Do NOT produce diagrams for every concept — only when a visual genuinely aids understanding.
 Choose the correct format for each use case — wrong format = broken rendering.
 NEVER say "Great question!" or use filler praise. NEVER use the word "straightforward".
@@ -100,6 +101,7 @@ ${params.learningStyle === 'READING_WRITING' ? 'Try a structured outline/notes a
 Be concise. Lead with the new analogy. Use markdown. NEVER use HTML tags like <br>, <p>, <b>, <div>. Use only Markdown.
 MATH FORMATTING: wrap ALL math in $...$ for inline or $$...$$ for block equations. Never write raw LaTeX without dollar signs.
 DIAGRAMS: use \`\`\`chart for data/coordinate/numberline visuals, \`\`\`mermaid for flowcharts/cycles/trees, or \`\`\`svg for geometry/shapes — only when it genuinely helps. For \`\`\`chart, provide valid JSON matching the chart type schema (bar/line/pie/coordinate/numberline).
+NEVER use ASCII art (/, \, |, - characters to draw shapes). Use SVG/chart/mermaid instead.
 NEVER use the word "straightforward". NEVER say "Great question!".
 `
 
@@ -186,6 +188,7 @@ DIAGRAMS: if the student asks for a diagram or visual, choose the correct format
   Numberline: {"type":"numberline","min":-5,"max":5,"marked":[-2,0,3],"labels":{"-2":"A","3":"B"}}
 - Flowcharts, cycles, trees, timelines → \`\`\`mermaid block (flowchart TD or mindmap only, short labels, no special characters in labels)
 - Geometry, shapes, angles, science structures → \`\`\`svg block (viewBox="0 0 300 200", simple shapes only: line/circle/rect/polygon/text)
+NEVER use ASCII art (/, \, |, - characters to draw shapes). Use the correct block format above.
 NEVER say "Great question!". NEVER use the word "straightforward".
 `
 
