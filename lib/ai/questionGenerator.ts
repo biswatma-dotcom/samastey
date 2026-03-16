@@ -40,7 +40,7 @@ ${styleHint}${avoidSection}
 
 The question should genuinely test understanding, not just recall. For 'hard', test application or multi-step reasoning. For 'easy', test core definition or direct formula use.
 
-Return ONLY valid JSON (no markdown, no extra text):
+Return ONLY valid JSON (no markdown, no extra text, no HTML tags like <br> or <p>):
 {
   "problem": "the question text",
   "options": ["A. option1", "B. option2", "C. option3", "D. option4"],

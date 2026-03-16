@@ -34,6 +34,27 @@ interface ChatParams {
 }
 
 /**
+ * Strip HTML artifacts from markdown text, preserving code blocks.
+ * Converts <br> → newline, <b>/<strong> → bold, <i>/<em> → italic, strips rest.
+ */
+function sanitizeMarkdown(text: string): string {
+  // Split on fenced code blocks to preserve SVG/mermaid/code content
+  const parts = text.split(/(```[\s\S]*?```)/g)
+  return parts
+    .map((part, i) => {
+      if (i % 2 === 1) return part // inside code block — leave unchanged
+      return part
+        .replace(/<br\s*\/?>/gi, '\n')
+        .replace(/<b>([\s\S]*?)<\/b>/gi, '**$1**')
+        .replace(/<strong>([\s\S]*?)<\/strong>/gi, '**$1**')
+        .replace(/<i>([\s\S]*?)<\/i>/gi, '*$1*')
+        .replace(/<em>([\s\S]*?)<\/em>/gi, '*$1*')
+        .replace(/<[^>]+>/g, '') // strip remaining unexpected HTML tags
+    })
+    .join('')
+}
+
+/**
  * sarvam-m wraps ALL output in <think>...</think>.
  * Extract the actual response: prefer text after </think>, else strip the opening tag.
  */
@@ -79,7 +100,7 @@ export async function sarvamChat(params: ChatParams): Promise<string> {
     const data = await res.json()
     const msg = data.choices?.[0]?.message
     const raw = msg?.content ?? msg?.reasoning_content ?? ''
-    return stripThinkBlock(raw)
+    return sanitizeMarkdown(stripThinkBlock(raw))
   } catch (err) {
     clearTimeout(timeout)
     throw err
@@ -125,7 +146,7 @@ export function sarvamStream(params: ChatParams): ReadableStream<Uint8Array> {
         const data = await res.json()
         const msg = data.choices?.[0]?.message
         const raw = msg?.content ?? msg?.reasoning_content ?? ''
-        const text = stripThinkBlock(raw)
+        const text = sanitizeMarkdown(stripThinkBlock(raw))
 
         if (text) controller.enqueue(encoder.encode(text))
         controller.close()

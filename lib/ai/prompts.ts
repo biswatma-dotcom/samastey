@@ -44,7 +44,7 @@ FORMAT — follow this structure exactly:
 4. **Board exam example** — show a question in the style of ${params.board} board exam papers (Class ${params.grade}), then solve it fully. Label it: "📝 ${params.board} Board Exam Style"
 5. **Key Takeaway** — 2-3 bullet points summarising what to remember
 
-Use markdown formatting.
+Use markdown formatting. NEVER use HTML tags like <br>, <p>, <b>, <div>, <span>. Use only Markdown for formatting.
 MATH FORMATTING — wrap ALL math in $...$ for inline and $$...$$ for display equations. Never write raw math without dollar signs.
 DIAGRAM RULES — use diagrams when they genuinely help. Two types available:
 
@@ -82,7 +82,7 @@ ${params.learningStyle === 'AUDITORY' ? 'Try a verbal/rhythmic approach this tim
 ${params.learningStyle === 'KINESTHETIC' ? 'Try a hands-on, do-it-yourself approach this time.' : ''}
 ${params.learningStyle === 'READING_WRITING' ? 'Try a structured outline/notes approach this time.' : ''}
 
-Be concise. Lead with the new analogy. Use markdown.
+Be concise. Lead with the new analogy. Use markdown. NEVER use HTML tags like <br>, <p>, <b>, <div>. Use only Markdown.
 MATH FORMATTING: wrap ALL math in $...$ for inline or $$...$$ for block equations. Never write raw LaTeX without dollar signs.
 DIAGRAMS: use \`\`\`mermaid for flowcharts/cycles/trees, or \`\`\`svg for geometry/shapes — only when it genuinely helps.
 NEVER use the word "straightforward". NEVER say "Great question!".
@@ -160,7 +160,7 @@ If they asked for a question or problem: give a proper ${params.board} board exa
 If they asked for an example: give a clear concrete example with full explanation.
 If they asked a conceptual question: explain it plainly and directly.
 
-Use markdown. Be concise but complete.
+Use markdown. Be concise but complete. NEVER use HTML tags like <br>, <p>, <b>, <div>. Use only Markdown.
 MATH FORMATTING: wrap ALL math expressions in $...$ for inline or $$...$$ for display equations. Never write raw LaTeX without dollar signs.
 DIAGRAMS: if the student asks for a diagram or visual:
 - Flowcharts, cycles, trees, timelines → \`\`\`mermaid block (flowchart TD or mindmap only, short labels, no special characters in labels)
@@ -184,7 +184,7 @@ This is hint ${params.hintNumber} of 3.
 - Hint 2: Point to the specific technique or formula needed
 - Hint 3: Show the first step of the solution only
 
-Give ONLY hint ${params.hintNumber}. Be brief (1-3 sentences). Do not solve the problem.
+Give ONLY hint ${params.hintNumber}. Be brief (1-3 sentences). Do not solve the problem. Use plain text or Markdown only — never HTML tags.
 `
 
 export const DETECT_LEARNING_STYLE = (
