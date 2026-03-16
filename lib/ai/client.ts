@@ -13,8 +13,8 @@ export function extractJSON(text: string): string {
 }
 
 const SARVAM_BASE_URL = 'https://api.sarvam.ai'
-// sarvam-30b is currently returning 504 on Sarvam's infrastructure — using sarvam-m which is fast (~1-2s)
-export const SARVAM_MODEL = 'sarvam-m'
+// sarvam-30b-16k: no think tags, clean output, 4-7s response, best quality/speed tradeoff
+export const SARVAM_MODEL = 'sarvam-30b-16k'
 
 function getApiKey(): string {
   const key = process.env.SARVAM_API_KEY
