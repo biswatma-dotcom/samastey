@@ -28,6 +28,7 @@ export async function POST(req: NextRequest) {
 
   const isBoardQuestion = question.type.startsWith('board_')
   let evaluation: any
+  let isCorrect = false
 
   if (isBoardQuestion) {
     // LLM-based evaluation with marks
@@ -48,6 +49,7 @@ export async function POST(req: NextRequest) {
       conceptTitle: concept?.title ?? '',
       board: student.board,
     })
+    isCorrect = boardEval.isCorrect
     evaluation = {
       isCorrect: boardEval.isCorrect,
       partialCredit: boardEval.partialCredit,
@@ -60,7 +62,7 @@ export async function POST(req: NextRequest) {
   } else {
     // Direct comparison for MCQ — no AI needed
     const normalise = (s: string) => s.trim().toLowerCase()
-    const isCorrect = normalise(studentAnswer) === normalise(question.answer)
+    isCorrect = normalise(studentAnswer) === normalise(question.answer)
     evaluation = {
       isCorrect,
       partialCredit: isCorrect ? 100 : 0,

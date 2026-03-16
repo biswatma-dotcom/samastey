@@ -18,6 +18,10 @@ const SVGDiagram = dynamic(
   () => import('./SVGDiagram').then((m) => ({ default: m.SVGDiagram })),
   { ssr: false }
 )
+const ChartDiagram = dynamic(
+  () => import('./ChartDiagram').then((m) => ({ default: m.ChartDiagram })),
+  { ssr: false }
+)
 
 /**
  * Convert \(...\) and \[...\] LaTeX delimiters to $...$ / $$...$$
@@ -84,6 +88,7 @@ export function StreamingResponse({ content, isStreaming, className }: Streaming
                 const lang = cls?.replace('language-', '') ?? ''
                 if (lang === 'mermaid') return <MermaidDiagram chart={String(children).trim()} />
                 if (lang === 'svg') return <SVGDiagram code={String(children).trim()} />
+                if (lang === 'chart') return <ChartDiagram code={String(children).trim()} />
                 return (
                   <code
                     className={cn(

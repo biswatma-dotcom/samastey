@@ -54,24 +54,29 @@ FORMAT — follow this structure exactly:
 
 Use markdown formatting. NEVER use HTML tags like <br>, <p>, <b>, <div>, <span>. Use only Markdown for formatting.
 MATH FORMATTING — wrap ALL math in $...$ for inline and $$...$$ for display equations. Never write raw math without dollar signs.
-DIAGRAM RULES — use diagrams when they genuinely help. Two types available:
+DIAGRAM AND VISUALIZATION RULES — use when they genuinely aid understanding:
 
-1. FLOWCHARTS / CYCLES / TREES → use a \`\`\`mermaid block. Only use these diagram types: flowchart TD, mindmap. Keep node labels short (no parentheses, no special chars). Example:
-\`\`\`mermaid
-flowchart TD
-  A[Whole Numbers] --> B[Natural Numbers]
-  A --> C[Zero]
-\`\`\`
+1. DATA / STATISTICS / ECONOMICS charts → use a \`\`\`chart block with JSON:
+   Bar chart: {"type":"bar","title":"...","xLabel":"...","yLabel":"...","data":[{"label":"...","value":N},...]}
+   Line graph: {"type":"line","title":"...","xLabel":"...","yLabel":"...","series":[{"label":"...","color":"#f97316","points":[[x,y],...]}]}
+   Pie chart: {"type":"pie","title":"...","data":[{"label":"...","value":N,"color":"#colorhex"},...]}
 
-2. GEOMETRY / SHAPES / SCIENCE DIAGRAMS → use a \`\`\`svg block with viewBox="0 0 300 200". Use only: line, circle, rect, polygon, polyline, text, path. Label everything clearly. Example:
-\`\`\`svg
-<svg viewBox="0 0 300 200" xmlns="http://www.w3.org/2000/svg" font-family="sans-serif" font-size="13">
-  <polygon points="50,150 250,150 150,30" fill="none" stroke="#4f46e5" stroke-width="2"/>
-  <text x="140" y="170" text-anchor="middle">base</text>
-</svg>
-\`\`\`
+2. COORDINATE GEOMETRY / GRAPHS OF EQUATIONS → use a \`\`\`chart block:
+   {"type":"coordinate","title":"...","xRange":[-5,5],"yRange":[-5,5],"plots":[{"type":"line","label":"y = 2x+1","color":"#f97316","points":[[-5,-9],[0,1],[5,11]]}]}
+   Calculate at least 3 points for each line/curve. For parabolas use 5+ points.
+
+3. NUMBER LINE → use a \`\`\`chart block:
+   {"type":"numberline","min":-5,"max":5,"marked":[-2,0,3],"labels":{"-2":"A","3":"B"}}
+
+4. FLOWCHARTS / CYCLES / TREES / PROCESSES → use \`\`\`mermaid (flowchart TD or mindmap only):
+   Keep node labels short, no parentheses, no special characters in labels.
+
+5. GEOMETRY SHAPES / SCIENCE DIAGRAMS (triangles, circuits, cells, angles) → use \`\`\`svg:
+   viewBox="0 0 300 200", use line/circle/rect/polygon/polyline/text/path only.
+   Include clear labels. No scripts, no external references.
 
 Do NOT produce diagrams for every concept — only when a visual genuinely aids understanding.
+Choose the correct format for each use case — wrong format = broken rendering.
 NEVER say "Great question!" or use filler praise. NEVER use the word "straightforward".
 `
 
@@ -94,7 +99,7 @@ ${params.learningStyle === 'READING_WRITING' ? 'Try a structured outline/notes a
 
 Be concise. Lead with the new analogy. Use markdown. NEVER use HTML tags like <br>, <p>, <b>, <div>. Use only Markdown.
 MATH FORMATTING: wrap ALL math in $...$ for inline or $$...$$ for block equations. Never write raw LaTeX without dollar signs.
-DIAGRAMS: use \`\`\`mermaid for flowcharts/cycles/trees, or \`\`\`svg for geometry/shapes — only when it genuinely helps.
+DIAGRAMS: use \`\`\`chart for data/coordinate/numberline visuals, \`\`\`mermaid for flowcharts/cycles/trees, or \`\`\`svg for geometry/shapes — only when it genuinely helps. For \`\`\`chart, provide valid JSON matching the chart type schema (bar/line/pie/coordinate/numberline).
 NEVER use the word "straightforward". NEVER say "Great question!".
 `
 
@@ -172,7 +177,13 @@ If they asked a conceptual question: explain it plainly and directly.
 
 Use markdown. Be concise but complete. NEVER use HTML tags like <br>, <p>, <b>, <div>. Use only Markdown.
 MATH FORMATTING: wrap ALL math expressions in $...$ for inline or $$...$$ for display equations. Never write raw LaTeX without dollar signs.
-DIAGRAMS: if the student asks for a diagram or visual:
+DIAGRAMS: if the student asks for a diagram or visual, choose the correct format:
+- Data charts, bar/line/pie graphs, coordinate geometry, number lines → \`\`\`chart block with valid JSON (types: bar/line/pie/coordinate/numberline)
+  Bar: {"type":"bar","title":"...","xLabel":"...","yLabel":"...","data":[{"label":"...","value":N},...]}
+  Line: {"type":"line","title":"...","xLabel":"...","yLabel":"...","series":[{"label":"...","color":"#f97316","points":[[x,y],...]}]}
+  Pie: {"type":"pie","title":"...","data":[{"label":"...","value":N,"color":"#colorhex"},...]}
+  Coordinate: {"type":"coordinate","title":"...","xRange":[-5,5],"yRange":[-5,5],"plots":[{"type":"line","label":"y=...","color":"#f97316","points":[[x,y],...]}]}
+  Numberline: {"type":"numberline","min":-5,"max":5,"marked":[-2,0,3],"labels":{"-2":"A","3":"B"}}
 - Flowcharts, cycles, trees, timelines → \`\`\`mermaid block (flowchart TD or mindmap only, short labels, no special characters in labels)
 - Geometry, shapes, angles, science structures → \`\`\`svg block (viewBox="0 0 300 200", simple shapes only: line/circle/rect/polygon/text)
 NEVER say "Great question!". NEVER use the word "straightforward".
