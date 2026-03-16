@@ -30,6 +30,11 @@ export function Navbar() {
               <Link href="/settings" className="text-sm text-gray-600 hover:text-orange-600 dark:text-gray-400">
                 Settings
               </Link>
+              {(session.user as any)?.role === 'ADMIN' && (
+                <Link href="/admin" className="rounded-md bg-orange-500/10 px-2.5 py-1 text-xs font-semibold text-orange-500 hover:bg-orange-500/20 transition-colors">
+                  Admin
+                </Link>
+              )}
               <Button variant="ghost" size="sm" onClick={() => signOut({ callbackUrl: '/login' })}>
                 Sign out
               </Button>
