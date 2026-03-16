@@ -1,8 +1,14 @@
 'use client'
 
 import { useState, useRef } from 'react'
+import dynamic from 'next/dynamic'
 import { Button } from '@/components/ui/button'
-import { StreamingResponse } from './StreamingResponse'
+
+// react-markdown + katex + remark/rehype are heavy — defer until content exists
+const StreamingResponse = dynamic(
+  () => import('./StreamingResponse').then((m) => ({ default: m.StreamingResponse })),
+  { ssr: false, loading: () => null }
+)
 
 interface ThreadItem {
   id: string

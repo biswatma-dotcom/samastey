@@ -1,14 +1,23 @@
 'use client'
 
 import { useEffect, useRef } from 'react'
+import dynamic from 'next/dynamic'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import remarkMath from 'remark-math'
 import rehypeKatex from 'rehype-katex'
 import 'katex/dist/katex.min.css'
 import { cn } from '@/lib/utils'
-import { MermaidDiagram } from './MermaidDiagram'
-import { SVGDiagram } from './SVGDiagram'
+
+// Heavy diagram libraries — loaded on demand only, not on initial page parse
+const MermaidDiagram = dynamic(
+  () => import('./MermaidDiagram').then((m) => ({ default: m.MermaidDiagram })),
+  { ssr: false, loading: () => <pre className="text-xs text-gray-400 italic p-2">Loading diagram…</pre> }
+)
+const SVGDiagram = dynamic(
+  () => import('./SVGDiagram').then((m) => ({ default: m.SVGDiagram })),
+  { ssr: false }
+)
 
 /**
  * Convert \(...\) and \[...\] LaTeX delimiters to $...$ / $$...$$

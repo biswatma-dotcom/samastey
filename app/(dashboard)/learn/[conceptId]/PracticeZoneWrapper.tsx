@@ -1,9 +1,22 @@
 'use client'
 
 import { useState } from 'react'
-import { PracticeZone } from '@/components/learn/PracticeZone'
+import dynamic from 'next/dynamic'
 import { MasteryBar } from '@/components/learn/MasteryBar'
-import { MasteryCelebration } from '@/components/learn/MasteryCelebration'
+
+// Both components use framer-motion — keep out of the initial page bundle
+const PracticeZone = dynamic(
+  () => import('@/components/learn/PracticeZone').then((m) => ({ default: m.PracticeZone })),
+  { ssr: false, loading: () => (
+    <div className="flex flex-col items-center justify-center gap-4 py-10 text-center">
+      <p className="text-sm text-gray-400">Loading...</p>
+    </div>
+  )}
+)
+const MasteryCelebration = dynamic(
+  () => import('@/components/learn/MasteryCelebration').then((m) => ({ default: m.MasteryCelebration })),
+  { ssr: false }
+)
 
 interface Props {
   conceptId: string
