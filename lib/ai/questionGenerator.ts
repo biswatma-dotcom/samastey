@@ -12,13 +12,14 @@ export function pickDifficulty(correctStreak: number, lastWasCorrect: boolean | 
 
 export async function generatePracticeQuestion(params: {
   conceptTitle: string
+  subjectName: string
   learningStyle: LearningStyle
   grade: number
   difficulty: Difficulty
   previousProblems: string[]
   language?: Language
 }) {
-  const { conceptTitle, learningStyle, grade, difficulty, previousProblems, language } = params
+  const { conceptTitle, subjectName, learningStyle, grade, difficulty, previousProblems, language } = params
 
   const langInstruction = language && language !== 'en'
     ? `IMPORTANT: Write the entire question, all answer options, and the explanation in ${LANGUAGE_NAMES[language]}. Only keep mathematical symbols and formulas in English.\n\n`
@@ -34,7 +35,11 @@ export async function generatePracticeQuestion(params: {
     ? `\nDo NOT repeat or closely resemble these previous problems:\n${previousProblems.map((p, i) => `${i + 1}. ${p}`).join('\n')}`
     : ''
 
-  const prompt = `${langInstruction}Generate ONE ${difficulty} difficulty multiple-choice practice question for a Class ${grade} student on the concept: "${conceptTitle}".
+  const prompt = `${langInstruction}Generate ONE ${difficulty} difficulty multiple-choice practice question for a Class ${grade} student.
+Subject: ${subjectName}
+Concept/Chapter: "${conceptTitle}"
+
+IMPORTANT: The question MUST be about ${subjectName} — specifically about "${conceptTitle}". Do NOT generate questions from other subjects.
 
 ${styleHint}${avoidSection}
 

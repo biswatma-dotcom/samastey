@@ -49,6 +49,7 @@ export async function POST(req: NextRequest) {
   if (pool.length < 5) {
     generatePracticeQuestion({
       conceptTitle: concept.title,
+      subjectName: concept.subject.name,
       learningStyle: student.learningStyle as LearningStyle,
       grade: student.grade,
       difficulty,
@@ -79,6 +80,7 @@ export async function POST(req: NextRequest) {
   try {
     const generated = await generatePracticeQuestion({
       conceptTitle: concept.title,
+      subjectName: concept.subject.name,
       learningStyle: student.learningStyle as LearningStyle,
       grade: student.grade,
       difficulty,
