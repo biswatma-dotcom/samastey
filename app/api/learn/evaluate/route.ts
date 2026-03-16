@@ -5,6 +5,7 @@ import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/db/prisma'
 import { calculateMasteryDelta, calculateNewMasteryScore, calculateXPEarned } from '@/lib/ai/evaluator'
+import { evaluateBoardAnswer } from '@/lib/ai/questionGenerator'
 import { createOrUpdateLearningRecord, updateStudentXP } from '@/lib/db/queries/student'
 
 export async function POST(req: NextRequest) {
@@ -25,17 +26,49 @@ export async function POST(req: NextRequest) {
   if (!student) return NextResponse.json({ error: 'Not found' }, { status: 404 })
   if (!question) return NextResponse.json({ error: 'Question not found' }, { status: 404 })
 
-  // Direct comparison — no AI needed
-  const normalise = (s: string) => s.trim().toLowerCase()
-  const isCorrect = normalise(studentAnswer) === normalise(question.answer)
+  const isBoardQuestion = question.type.startsWith('board_')
+  let evaluation: any
 
-  const evaluation = {
-    isCorrect,
-    partialCredit: isCorrect ? 100 : 0,
-    feedback: isCorrect
-      ? 'Correct! ' + question.explanation
-      : `Not quite. The correct answer is: ${question.answer}. ${question.explanation}`,
-    mistakeType: isCorrect ? null : 'conceptual',
+  if (isBoardQuestion) {
+    // LLM-based evaluation with marks
+    const marks = parseInt(question.type.split('_')[1]) || 3
+    const markingScheme = question.explanation
+      ? question.explanation.split('\n').filter(Boolean)
+      : []
+    const concept = await prisma.concept.findUnique({
+      where: { id: conceptId },
+      include: { subject: true },
+    })
+    const boardEval = await evaluateBoardAnswer({
+      problem: question.problem,
+      modelAnswer: question.answer,
+      markingScheme,
+      studentAnswer,
+      marks,
+      conceptTitle: concept?.title ?? '',
+      board: student.board,
+    })
+    evaluation = {
+      isCorrect: boardEval.isCorrect,
+      partialCredit: boardEval.partialCredit,
+      feedback: boardEval.feedback,
+      mistakeType: boardEval.mistakeType,
+      marksAwarded: boardEval.marksAwarded,
+      marksTotal: boardEval.marksTotal,
+      markingBreakdown: boardEval.markingBreakdown,
+    }
+  } else {
+    // Direct comparison for MCQ — no AI needed
+    const normalise = (s: string) => s.trim().toLowerCase()
+    const isCorrect = normalise(studentAnswer) === normalise(question.answer)
+    evaluation = {
+      isCorrect,
+      partialCredit: isCorrect ? 100 : 0,
+      feedback: isCorrect
+        ? 'Correct! ' + question.explanation
+        : `Not quite. The correct answer is: ${question.answer}. ${question.explanation}`,
+      mistakeType: isCorrect ? null : 'conceptual',
+    }
   }
 
   // Get current mastery score

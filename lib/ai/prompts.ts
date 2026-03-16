@@ -197,6 +197,80 @@ This is hint ${params.hintNumber} of 3.
 Give ONLY hint ${params.hintNumber}. Be brief (1-3 sentences). Do not solve the problem. Use plain text or Markdown only — never HTML tags.
 `
 
+export const GENERATE_BOARD_QUESTION = (params: {
+  conceptTitle: string
+  subjectName: string
+  board: string
+  grade: number
+  marks: 1 | 2 | 3 | 5
+  previousProblems: string[]
+  language?: Language
+}) => {
+  const textbook = params.board === 'CBSE' ? 'NCERT' : 'ICSE'
+  const langInstruction = params.language && params.language !== 'en'
+    ? `CRITICAL: Write the entire question, model answer, and marking scheme in ${LANGUAGE_NAMES[params.language as Language]}. Only keep mathematical symbols in English.\n\n`
+    : ''
+  const avoidSection = params.previousProblems.length > 0
+    ? `\nDo NOT repeat these previous questions:\n${params.previousProblems.slice(-3).map((p, i) => `${i + 1}. ${p}`).join('\n')}`
+    : ''
+  const questionStyle =
+    params.marks === 1 ? 'Very Short Answer (VSA): 1 sentence answer expected' :
+    params.marks === 2 ? 'Short Answer (SA-I): 2-3 sentences or a short list' :
+    params.marks === 3 ? 'Short Answer (SA-II): a paragraph or structured 3-point answer' :
+    'Long Answer (LA): detailed explanation, diagram/example expected'
+
+  return `${langInstruction}Generate ONE ${params.marks}-mark board exam style question for a Class ${params.grade} ${params.board} student.
+Subject: ${params.subjectName}
+Concept/Chapter: "${params.conceptTitle}"
+Textbook: ${textbook} Class ${params.grade}
+Question type: ${questionStyle}${avoidSection}
+
+IMPORTANT:
+- Style must match actual ${params.board} board exam papers
+- Use exact ${textbook} textbook terminology
+- The question must be about ${params.subjectName} — specifically "${params.conceptTitle}"
+- Do NOT include MCQ options
+
+Return ONLY valid JSON (no markdown, no HTML tags):
+{
+  "problem": "the question text",
+  "marks": ${params.marks},
+  "modelAnswer": "complete model answer as it would appear in NCERT solutions / board answer key",
+  "markingScheme": ["point 1 worth X mark(s)", "point 2 worth X mark(s)"]
+}`
+}
+
+export const EVALUATE_BOARD_ANSWER = (params: {
+  problem: string
+  modelAnswer: string
+  markingScheme: string[]
+  studentAnswer: string
+  marks: number
+  conceptTitle: string
+  board: string
+}) => `You are a ${params.board} board examiner evaluating a student's answer.
+
+Question (${params.marks} marks): ${params.problem}
+
+Model Answer: ${params.modelAnswer}
+
+Marking Scheme:
+${params.markingScheme.map((p, i) => `${i + 1}. ${p}`).join('\n')}
+
+Student's Answer: ${params.studentAnswer}
+
+Evaluate strictly as a ${params.board} board examiner. Award marks based on the marking scheme. Partial credit is allowed.
+
+Return ONLY valid JSON (no markdown, no HTML tags):
+{
+  "marksAwarded": <number 0 to ${params.marks}>,
+  "marksTotal": ${params.marks},
+  "isCorrect": <true if full marks>,
+  "feedback": "1-2 sentences of examiner feedback — what was good and what was missed",
+  "markingBreakdown": "point-by-point breakdown of marks awarded",
+  "mistakeType": <"conceptual" | "incomplete" | "correct" | null>
+}`
+
 export const DETECT_LEARNING_STYLE = (
   interactions: {
     type: string

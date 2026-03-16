@@ -1,5 +1,6 @@
 import { LearningStyle, Language, LANGUAGE_NAMES } from '@/types'
 import { sarvamChat, extractJSON } from './client'
+import { GENERATE_BOARD_QUESTION, EVALUATE_BOARD_ANSWER } from './prompts'
 
 export type Difficulty = 'easy' | 'medium' | 'hard'
 
@@ -66,5 +67,57 @@ Return ONLY valid JSON (no markdown, no extra text, no HTML tags like <br> or <p
     options: parsed.options as string[],
     answer: parsed.answer as string,
     explanation: parsed.explanation as string,
+  }
+}
+
+// Board exam marks distribution — weighted toward common question types
+const BOARD_MARKS_OPTIONS: (1 | 2 | 3 | 5)[] = [1, 1, 2, 3, 3, 5]
+
+export async function generateBoardQuestion(params: {
+  conceptTitle: string
+  subjectName: string
+  board: string
+  grade: number
+  previousProblems: string[]
+  language?: Language
+}) {
+  // Pick marks randomly weighted toward 3-mark questions
+  const marks = BOARD_MARKS_OPTIONS[Math.floor(Math.random() * BOARD_MARKS_OPTIONS.length)]
+
+  const prompt = GENERATE_BOARD_QUESTION({ ...params, marks })
+  const raw = await sarvamChat({ messages: [{ role: 'user', content: prompt }], max_tokens: 4000 })
+  const parsed = JSON.parse(extractJSON(raw))
+
+  return {
+    problem: parsed.problem as string,
+    type: `board_${marks}` as 'board_1' | 'board_2' | 'board_3' | 'board_5',
+    options: [] as string[],
+    answer: parsed.modelAnswer as string,
+    explanation: Array.isArray(parsed.markingScheme) ? parsed.markingScheme.join('\n') : '',
+    marks,
+    markingScheme: (parsed.markingScheme ?? []) as string[],
+  }
+}
+
+export async function evaluateBoardAnswer(params: {
+  problem: string
+  modelAnswer: string
+  markingScheme: string[]
+  studentAnswer: string
+  marks: number
+  conceptTitle: string
+  board: string
+}) {
+  const prompt = EVALUATE_BOARD_ANSWER(params)
+  const raw = await sarvamChat({ messages: [{ role: 'user', content: prompt }], max_tokens: 2000 })
+  const parsed = JSON.parse(extractJSON(raw))
+  return {
+    marksAwarded: Number(parsed.marksAwarded ?? 0),
+    marksTotal: Number(parsed.marksTotal ?? params.marks),
+    isCorrect: parsed.marksAwarded >= parsed.marksTotal,
+    feedback: parsed.feedback as string,
+    markingBreakdown: parsed.markingBreakdown as string,
+    mistakeType: parsed.mistakeType ?? null,
+    partialCredit: Math.round((parsed.marksAwarded / parsed.marksTotal) * 100),
   }
 }

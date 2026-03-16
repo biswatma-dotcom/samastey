@@ -5,7 +5,7 @@ import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/db/prisma'
 import { getConceptById } from '@/lib/db/queries/concepts'
-import { generatePracticeQuestion, pickDifficulty } from '@/lib/ai/questionGenerator'
+import { generatePracticeQuestion, generateBoardQuestion, pickDifficulty } from '@/lib/ai/questionGenerator'
 import { LearningStyle, Language } from '@/types'
 
 export async function POST(req: NextRequest) {
@@ -17,6 +17,7 @@ export async function POST(req: NextRequest) {
     correctStreak = 0,
     lastWasCorrect = null,
     lastProblems = [],
+    mode = 'mcq',
   } = await req.json()
 
   if (!conceptId) return NextResponse.json({ error: 'conceptId required' }, { status: 400 })
@@ -28,11 +29,53 @@ export async function POST(req: NextRequest) {
 
   if (!concept || !student) return NextResponse.json({ error: 'Not found' }, { status: 404 })
 
+  const language = (student.language || 'en') as Language
+
+  // ── Board exam mode — always generate fresh (not cached) ─────────────────
+  if (mode === 'board') {
+    try {
+      const generated = await generateBoardQuestion({
+        conceptTitle: concept.title,
+        subjectName: concept.subject.name,
+        board: student.board,
+        grade: student.grade,
+        previousProblems: lastProblems.slice(-3),
+        language,
+      })
+      // Save to pool for history reference (not served back from pool)
+      const saved = await prisma.question.create({
+        data: {
+          conceptId,
+          problem: generated.problem,
+          type: generated.type,
+          options: [],
+          answer: generated.answer,
+          explanation: generated.explanation,
+          difficulty: 'medium',
+          orderIndex: 0,
+        },
+      })
+      return NextResponse.json({
+        id: saved.id,
+        problem: generated.problem,
+        type: generated.type,
+        options: [],
+        answer: generated.answer,
+        explanation: generated.explanation,
+        marks: generated.marks,
+        markingScheme: generated.markingScheme,
+      })
+    } catch (err: any) {
+      console.error('[practice] board question failed:', err?.message ?? err)
+      return NextResponse.json({ error: err?.message ?? 'Failed to generate question' }, { status: 500 })
+    }
+  }
+
+  // ── MCQ mode — use question pool ─────────────────────────────────────────
   const difficulty = pickDifficulty(correctStreak, lastWasCorrect)
 
-  // Try to serve from the existing question pool first (avoid live API call)
   const pool = await prisma.question.findMany({
-    where: { conceptId, difficulty },
+    where: { conceptId, difficulty, type: 'multiple_choice' },
     select: { id: true, problem: true, type: true, options: true, answer: true, explanation: true },
   })
 
@@ -43,9 +86,7 @@ export async function POST(req: NextRequest) {
       ? pool[Math.floor(Math.random() * pool.length)]
       : null
 
-  const language = (student.language || 'en') as Language
-
-  // Refill pool in background if running low (fire-and-forget)
+  // Refill pool in background if running low
   if (pool.length < 5) {
     generatePracticeQuestion({
       conceptTitle: concept.title,
@@ -69,15 +110,14 @@ export async function POST(req: NextRequest) {
           orderIndex: 0,
         },
       })
-    ).catch(() => { /* silent — pool refill is best-effort */ })
+    ).catch(() => { /* silent */ })
   }
 
-  // Serve from pool instantly if available
   if (candidate) {
     return NextResponse.json({ ...candidate, difficulty })
   }
 
-  // Pool was empty — generate on-demand (first time only)
+  // Pool empty — generate on-demand
   try {
     const generated = await generatePracticeQuestion({
       conceptTitle: concept.title,
@@ -89,7 +129,6 @@ export async function POST(req: NextRequest) {
       previousProblems: lastProblems.slice(-3),
       language,
     })
-
     const saved = await prisma.question.create({
       data: {
         conceptId,
@@ -102,7 +141,6 @@ export async function POST(req: NextRequest) {
         orderIndex: 0,
       },
     })
-
     return NextResponse.json({
       id: saved.id,
       problem: saved.problem,
