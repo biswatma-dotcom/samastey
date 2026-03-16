@@ -50,6 +50,7 @@ export async function POST(req: NextRequest) {
     generatePracticeQuestion({
       conceptTitle: concept.title,
       subjectName: concept.subject.name,
+      board: student.board,
       learningStyle: student.learningStyle as LearningStyle,
       grade: student.grade,
       difficulty,
@@ -81,6 +82,7 @@ export async function POST(req: NextRequest) {
     const generated = await generatePracticeQuestion({
       conceptTitle: concept.title,
       subjectName: concept.subject.name,
+      board: student.board,
       learningStyle: student.learningStyle as LearningStyle,
       grade: student.grade,
       difficulty,

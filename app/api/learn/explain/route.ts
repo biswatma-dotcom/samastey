@@ -56,6 +56,8 @@ export async function POST(req: NextRequest) {
       conceptTitle: concept.title,
       learningStyle: student.learningStyle as LearningStyle,
       previousApproach,
+      grade: student.grade,
+      board: student.board,
       language,
     })
     return new Response(stream, {

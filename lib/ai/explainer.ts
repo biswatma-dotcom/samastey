@@ -21,6 +21,8 @@ export function streamAlternateExplanation(params: {
   conceptTitle: string
   learningStyle: LearningStyle
   previousApproach: string
+  grade: number
+  board: string
   language?: Language
 }): ReadableStream<Uint8Array> {
   const prompt = EXPLAIN_DIFFERENTLY(params)
