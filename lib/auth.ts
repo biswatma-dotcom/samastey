@@ -39,10 +39,20 @@ export const authOptions: NextAuthOptions = {
       },
     }),
   ],
+  events: {
+    async createUser({ user }) {
+      // Auto-promote superadmin on first sign-up
+      if (user.email === 'biswatma@convin.ai') {
+        await prisma.user.update({ where: { id: user.id }, data: { role: 'ADMIN' } })
+      }
+    },
+  },
   callbacks: {
     async jwt({ token, user }) {
       if (user) {
-        token.role = (user as any).role
+        // Always read fresh role from DB so promotion takes effect immediately
+        const dbUser = await prisma.user.findUnique({ where: { id: user.id }, select: { role: true } })
+        token.role = dbUser?.role ?? (user as any).role
         token.id = user.id
       }
       return token
