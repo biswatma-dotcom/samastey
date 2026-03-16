@@ -13,7 +13,8 @@ export function extractJSON(text: string): string {
 }
 
 const SARVAM_BASE_URL = 'https://api.sarvam.ai'
-export const SARVAM_MODEL = 'sarvam-30b'
+// sarvam-30b is currently returning 504 on Sarvam's infrastructure — using sarvam-m which is fast (~1-2s)
+export const SARVAM_MODEL = 'sarvam-m'
 
 function getApiKey(): string {
   const key = process.env.SARVAM_API_KEY
@@ -32,46 +33,71 @@ interface ChatParams {
   temperature?: number
 }
 
-export async function sarvamChat(params: ChatParams): Promise<string> {
-  const controller = new AbortController()
-  const timeout = setTimeout(() => controller.abort(), 55000) // 55s — leaves buffer before Vercel's 60s limit
-
-  const res = await fetch(`${SARVAM_BASE_URL}/v1/chat/completions`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      Authorization: `Bearer ${getApiKey()}`,
-    },
-    body: JSON.stringify({
-      model: SARVAM_MODEL,
-      messages: [
-        { role: 'system', content: 'Be direct and concise. Return only what is asked.' },
-        ...params.messages,
-      ],
-      max_tokens: params.max_tokens ?? 4000,
-      temperature: params.temperature ?? 0.7,
-    }),
-    signal: controller.signal,
-  })
-  clearTimeout(timeout)
-
-  if (!res.ok) {
-    const err = await res.text()
-    throw Object.assign(new Error(`Sarvam API error: ${err}`), { status: res.status })
+/**
+ * sarvam-m wraps ALL output in <think>...</think>.
+ * Extract the actual response: prefer text after </think>, else strip the opening tag.
+ */
+function stripThinkBlock(raw: string): string {
+  const closeIdx = raw.lastIndexOf('</think>')
+  if (closeIdx !== -1) {
+    const after = raw.slice(closeIdx + 8).trim()
+    if (after.length > 10) return after
   }
-
-  const data = await res.json()
-  const msg = data.choices?.[0]?.message
-  return msg?.content ?? msg?.reasoning_content ?? ''
+  // No closing tag — the answer is inside the think block; strip the opening tag
+  return raw.replace(/^<think>\s*/i, '').trim()
 }
 
+export async function sarvamChat(params: ChatParams): Promise<string> {
+  const controller = new AbortController()
+  const timeout = setTimeout(() => controller.abort(), 55000)
+
+  try {
+    const res = await fetch(`${SARVAM_BASE_URL}/v1/chat/completions`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${getApiKey()}`,
+      },
+      body: JSON.stringify({
+        model: SARVAM_MODEL,
+        messages: [
+          { role: 'system', content: 'Be direct and concise. Return only what is asked.' },
+          ...params.messages,
+        ],
+        max_tokens: params.max_tokens ?? 4000,
+        temperature: params.temperature ?? 0.7,
+      }),
+      signal: controller.signal,
+    })
+    clearTimeout(timeout)
+
+    if (!res.ok) {
+      const err = await res.text()
+      throw Object.assign(new Error(`Sarvam API error: ${err}`), { status: res.status })
+    }
+
+    const data = await res.json()
+    const msg = data.choices?.[0]?.message
+    const raw = msg?.content ?? msg?.reasoning_content ?? ''
+    return stripThinkBlock(raw)
+  } catch (err) {
+    clearTimeout(timeout)
+    throw err
+  }
+}
+
+/**
+ * sarvam-m does not benefit from SSE streaming (thinking + answer arrive together).
+ * We fetch the full JSON response, strip think tags, then emit as one chunk.
+ * This gives a clean "appear at once" experience after a short wait (~1-3s).
+ */
 export function sarvamStream(params: ChatParams): ReadableStream<Uint8Array> {
   const encoder = new TextEncoder()
 
   return new ReadableStream({
     async start(controller) {
-      const streamAbort = new AbortController()
-      const streamTimeout = setTimeout(() => streamAbort.abort(), 55000) // 55s — graceful abort before Vercel's 60s limit
+      const abortCtrl = new AbortController()
+      const timeout = setTimeout(() => abortCtrl.abort(), 55000)
 
       try {
         const res = await fetch(`${SARVAM_BASE_URL}/v1/chat/completions`, {
@@ -85,71 +111,26 @@ export function sarvamStream(params: ChatParams): ReadableStream<Uint8Array> {
             messages: params.messages,
             max_tokens: params.max_tokens ?? 6000,
             temperature: params.temperature ?? 0.7,
-            stream: true,
           }),
-          signal: streamAbort.signal,
+          signal: abortCtrl.signal,
         })
+        clearTimeout(timeout)
 
         if (!res.ok) {
-          clearTimeout(streamTimeout)
           const err = await res.text()
           controller.error(Object.assign(new Error(`Sarvam API error: ${err}`), { status: res.status }))
           return
         }
 
-        const reader = res.body!.getReader()
-        const decoder = new TextDecoder()
-        let buffer = ''
-        let inThinkBlock = false
+        const data = await res.json()
+        const msg = data.choices?.[0]?.message
+        const raw = msg?.content ?? msg?.reasoning_content ?? ''
+        const text = stripThinkBlock(raw)
 
-        while (true) {
-          const { done, value } = await reader.read()
-          if (done) break
-
-          buffer += decoder.decode(value, { stream: true })
-          const lines = buffer.split('\n')
-          buffer = lines.pop() ?? ''
-
-          for (const line of lines) {
-            if (!line.startsWith('data: ')) continue
-            const data = line.slice(6).trim()
-            if (data === '[DONE]') {
-              clearTimeout(streamTimeout)
-              controller.close()
-              return
-            }
-            try {
-              const chunk = JSON.parse(data)
-              const text: string = chunk.choices?.[0]?.delta?.content ?? ''
-              if (!text) continue
-
-              // Strip <think>...</think> blocks — reasoning model leakage
-              let output = ''
-              let remaining = text
-              while (remaining.length > 0) {
-                if (inThinkBlock) {
-                  const closeIdx = remaining.indexOf('</think>')
-                  if (closeIdx === -1) { remaining = ''; break }
-                  inThinkBlock = false
-                  remaining = remaining.slice(closeIdx + 8)
-                } else {
-                  const openIdx = remaining.indexOf('<think>')
-                  if (openIdx === -1) { output += remaining; break }
-                  output += remaining.slice(0, openIdx)
-                  inThinkBlock = true
-                  remaining = remaining.slice(openIdx + 7)
-                }
-              }
-              if (output) controller.enqueue(encoder.encode(output))
-            } catch {
-              // Skip malformed SSE line
-            }
-          }
-        }
-        clearTimeout(streamTimeout)
+        if (text) controller.enqueue(encoder.encode(text))
         controller.close()
       } catch (error) {
-        clearTimeout(streamTimeout)
+        clearTimeout(timeout)
         controller.error(error)
       }
     },
