@@ -64,6 +64,8 @@ export async function POST(req: NextRequest) {
         explanation: generated.explanation,
         marks: generated.marks,
         markingScheme: generated.markingScheme,
+        isDiagramQuestion: generated.isDiagramQuestion,
+        modelDiagram: generated.modelDiagram,
       })
     } catch (err: any) {
       console.error('[practice] board question failed:', err?.message ?? err)

@@ -241,14 +241,26 @@ IMPORTANT:
 - Use exact ${textbook} textbook terminology
 - The question must be about ${params.subjectName} — specifically "${params.conceptTitle}"
 - Do NOT include MCQ options
+- For 3+ mark questions, diagram questions are encouraged where relevant (e.g. "Draw a labelled diagram of...", "Draw the graph of...", "Plot the following on a coordinate plane...")
+
+DIAGRAM QUESTIONS — when isDiagramQuestion is true, include a modelDiagram field:
+- For geometry / science / biology / circuits → use format "svg" with a complete <svg viewBox="0 0 300 200"> block
+- For graphs of equations / coordinate geometry → use format "chart" with coordinate JSON: {"type":"coordinate","title":"...","xRange":[...],"yRange":[...],"plots":[...]}
+- For bar/line/pie charts → use format "chart" with the appropriate chart JSON
+- For flowcharts / cycles / processes → use format "mermaid" with a flowchart TD definition
+- modelDiagram.code must be complete and correct — it will be rendered directly to the student
 
 Return ONLY valid JSON (no markdown, no HTML tags):
 {
   "problem": "the question text",
   "marks": ${params.marks},
-  "modelAnswer": "complete model answer as it would appear in NCERT solutions / board answer key",
-  "markingScheme": ["point 1 worth X mark(s)", "point 2 worth X mark(s)"]
-}`
+  "isDiagramQuestion": false,
+  "modelAnswer": "complete model answer as it would appear in ${textbook} solutions / board answer key",
+  "markingScheme": ["point 1 worth X mark(s)", "point 2 worth X mark(s)"],
+  "modelDiagram": null
+}
+
+If isDiagramQuestion is true, set modelDiagram to: {"format": "svg"|"chart"|"mermaid", "code": "...complete diagram code..."}`
 }
 
 export const EVALUATE_BOARD_ANSWER = (params: {
@@ -259,6 +271,7 @@ export const EVALUATE_BOARD_ANSWER = (params: {
   marks: number
   conceptTitle: string
   board: string
+  isDiagramQuestion?: boolean
 }) => `You are a ${params.board} board examiner evaluating a student's answer.
 
 Question (${params.marks} marks): ${params.problem}
@@ -269,7 +282,10 @@ Marking Scheme:
 ${params.markingScheme.map((p, i) => `${i + 1}. ${p}`).join('\n')}
 
 Student's Answer: ${params.studentAnswer}
-
+${params.isDiagramQuestion ? `
+NOTE: This is a diagram question. The student has described what they would draw rather than actually drawing it.
+Evaluate based on whether they correctly identified the key components, labels, and structure.
+Award marks if they mentioned the correct parts even if their description is informal.` : ''}
 Evaluate strictly as a ${params.board} board examiner. Award marks based on the marking scheme. Partial credit is allowed.
 
 Return ONLY valid JSON (no markdown, no HTML tags):
@@ -277,7 +293,7 @@ Return ONLY valid JSON (no markdown, no HTML tags):
   "marksAwarded": <number 0 to ${params.marks}>,
   "marksTotal": ${params.marks},
   "isCorrect": <true if full marks>,
-  "feedback": "1-2 sentences of examiner feedback — what was good and what was missed",
+  "feedback": "1-2 sentences of examiner feedback — what was correct and what was missing",
   "markingBreakdown": "point-by-point breakdown of marks awarded",
   "mistakeType": <"conceptual" | "incomplete" | "correct" | null>
 }`

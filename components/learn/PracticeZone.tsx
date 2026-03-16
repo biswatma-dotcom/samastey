@@ -1,11 +1,25 @@
 'use client'
 
 import { useState } from 'react'
+import dynamic from 'next/dynamic'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { cn } from '@/lib/utils'
-import { PracticeQuestion, EvaluationResult, QuestionMode } from '@/types'
+import { PracticeQuestion, EvaluationResult, QuestionMode, ModelDiagram } from '@/types'
+
+const MermaidDiagram = dynamic(
+  () => import('./MermaidDiagram').then((m) => ({ default: m.MermaidDiagram })),
+  { ssr: false }
+)
+const SVGDiagram = dynamic(
+  () => import('./SVGDiagram').then((m) => ({ default: m.SVGDiagram })),
+  { ssr: false }
+)
+const ChartDiagram = dynamic(
+  () => import('./ChartDiagram').then((m) => ({ default: m.ChartDiagram })),
+  { ssr: false }
+)
 
 interface PracticeZoneProps {
   conceptId: string
@@ -24,6 +38,15 @@ type StoredQuestion = PracticeQuestion & {
   difficulty?: string
   marks?: number
   markingScheme?: string[]
+  isDiagramQuestion?: boolean
+  modelDiagram?: ModelDiagram | null
+}
+
+function ModelDiagramRenderer({ diagram }: { diagram: ModelDiagram }) {
+  if (diagram.format === 'mermaid') return <MermaidDiagram chart={diagram.code} />
+  if (diagram.format === 'chart') return <ChartDiagram code={diagram.code} />
+  if (diagram.format === 'svg') return <SVGDiagram code={diagram.code} />
+  return null
 }
 
 type BoardEvaluation = EvaluationResult & {
@@ -122,6 +145,7 @@ export function PracticeZone({ conceptId, conceptTitle, onScoreUpdate }: Practic
         studentAnswer: answer,
         hintsUsed,
         correctStreak,
+        isDiagramQuestion: question.isDiagramQuestion ?? false,
       }),
     })
     const data = await res.json()
@@ -250,14 +274,25 @@ export function PracticeZone({ conceptId, conceptTitle, onScoreUpdate }: Practic
         </div>
       ) : (
         // Board exam textarea
-        <textarea
-          value={textAnswer}
-          onChange={(e) => setTextAnswer(e.target.value)}
-          disabled={!!result}
-          placeholder="Write your answer here..."
-          rows={6}
-          className="w-full rounded-lg border border-gray-200 px-4 py-3 text-sm focus:border-orange-500 focus:outline-none dark:border-gray-700 dark:bg-gray-900 dark:text-gray-100 resize-y"
-        />
+        <div className="space-y-2">
+          {isBoardQuestion && question!.isDiagramQuestion && (
+            <div className="rounded-lg bg-blue-50 px-4 py-2.5 text-xs text-blue-700 dark:bg-blue-950 dark:text-blue-300">
+              ✏️ <strong>Diagram question</strong> — describe what you would draw: list all components, labels, and arrows you would include.
+            </div>
+          )}
+          <textarea
+            value={textAnswer}
+            onChange={(e) => setTextAnswer(e.target.value)}
+            disabled={!!result}
+            placeholder={
+              isBoardQuestion && question!.isDiagramQuestion
+                ? "Describe your diagram: list all parts, labels, and how they connect..."
+                : "Write your answer here..."
+            }
+            rows={isBoardQuestion && question!.isDiagramQuestion ? 4 : 6}
+            className="w-full rounded-lg border border-gray-200 px-4 py-3 text-sm focus:border-orange-500 focus:outline-none dark:border-gray-700 dark:bg-gray-900 dark:text-gray-100 resize-y"
+          />
+        </div>
       )}
 
       {/* Hints (MCQ only) */}
@@ -315,10 +350,18 @@ export function PracticeZone({ conceptId, conceptTitle, onScoreUpdate }: Practic
                   </details>
                 )}
 
+                {/* Model diagram — shown immediately for diagram questions */}
+                {question!.isDiagramQuestion && question!.modelDiagram && (
+                  <div className="mt-3">
+                    <p className="mb-1 text-xs font-medium text-gray-500">Model diagram:</p>
+                    <ModelDiagramRenderer diagram={question!.modelDiagram} />
+                  </div>
+                )}
+
                 {/* Model answer */}
                 <details className="mt-2">
                   <summary className="cursor-pointer text-xs font-medium text-gray-500 hover:text-gray-700 dark:hover:text-gray-300">
-                    Model answer
+                    {question!.isDiagramQuestion ? 'What to include in your diagram' : 'Model answer'}
                   </summary>
                   <p className="mt-2 text-xs text-gray-600 dark:text-gray-400 whitespace-pre-line">
                     {question!.answer}

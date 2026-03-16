@@ -96,6 +96,8 @@ export async function generateBoardQuestion(params: {
     explanation: Array.isArray(parsed.markingScheme) ? parsed.markingScheme.join('\n') : '',
     marks,
     markingScheme: (parsed.markingScheme ?? []) as string[],
+    isDiagramQuestion: !!(parsed.isDiagramQuestion),
+    modelDiagram: parsed.modelDiagram as { format: 'svg' | 'chart' | 'mermaid'; code: string } | null ?? null,
   }
 }
 
@@ -107,6 +109,7 @@ export async function evaluateBoardAnswer(params: {
   marks: number
   conceptTitle: string
   board: string
+  isDiagramQuestion?: boolean
 }) {
   const prompt = EVALUATE_BOARD_ANSWER(params)
   const raw = await sarvamChat({ messages: [{ role: 'user', content: prompt }], max_tokens: 2000 })

@@ -57,6 +57,11 @@ export interface ConceptWithProgress {
 
 export type QuestionMode = 'mcq' | 'board'
 
+export interface ModelDiagram {
+  format: 'svg' | 'chart' | 'mermaid'
+  code: string
+}
+
 export interface PracticeQuestion {
   problem: string
   type: 'multiple_choice' | 'fill_in_blank' | 'short_answer' | 'board_1' | 'board_2' | 'board_3' | 'board_5'
@@ -66,6 +71,8 @@ export interface PracticeQuestion {
   // board questions only
   marks?: number
   markingScheme?: string[]
+  isDiagramQuestion?: boolean
+  modelDiagram?: ModelDiagram | null
 }
 
 export interface EvaluationResult {

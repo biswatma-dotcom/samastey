@@ -12,7 +12,7 @@ export async function POST(req: NextRequest) {
   const session = await getServerSession(authOptions)
   if (!session?.user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
-  const { conceptId, questionId, studentAnswer, hintsUsed = 0, correctStreak = 0 } = await req.json()
+  const { conceptId, questionId, studentAnswer, hintsUsed = 0, correctStreak = 0, isDiagramQuestion = false } = await req.json()
 
   if (!conceptId || !questionId || !studentAnswer) {
     return NextResponse.json({ error: 'Missing required fields' }, { status: 400 })
@@ -48,6 +48,7 @@ export async function POST(req: NextRequest) {
       marks,
       conceptTitle: concept?.title ?? '',
       board: student.board,
+      isDiagramQuestion,
     })
     isCorrect = boardEval.isCorrect
     evaluation = {
