@@ -1,0 +1,189 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  name      String
+  password  String?
+  role      Role     @default(STUDENT)
+  createdAt DateTime @default(now())
+  student   Student?
+  parent    Parent?
+}
+
+enum Role {
+  STUDENT
+  PARENT
+  ADMIN
+}
+
+model Student {
+  id            String            @id @default(cuid())
+  userId        String            @unique
+  user          User              @relation(fields: [userId], references: [id])
+  grade         Int
+  board         Board             @default(CBSE)
+  learningStyle LearningStyle     @default(UNKNOWN)
+  learningPace  Pace              @default(MEDIUM)
+  language      String            @default("en")
+  xpTotal       Int               @default(0)
+  streakDays    Int               @default(0)
+  lastActiveAt  DateTime?
+  profiles      LearningProfile[]
+  records       LearningRecord[]
+  sessions      LearningSession[]
+  parentId      String?
+  parent        Parent?           @relation(fields: [parentId], references: [id])
+}
+
+enum Board {
+  CBSE
+  ICSE
+  STATE
+}
+
+enum LearningStyle {
+  VISUAL
+  AUDITORY
+  KINESTHETIC
+  READING_WRITING
+  UNKNOWN
+}
+
+enum Pace {
+  SLOW
+  MEDIUM
+  FAST
+}
+
+model Parent {
+  id       String    @id @default(cuid())
+  userId   String    @unique
+  user     User      @relation(fields: [userId], references: [id])
+  students Student[]
+}
+
+model Subject {
+  id       String    @id @default(cuid())
+  name     String
+  code     String    @unique
+  grade    Int
+  board    Board
+  concepts Concept[]
+}
+
+model Concept {
+  id               String              @id @default(cuid())
+  title            String
+  description      String
+  subjectId        String
+  subject          Subject             @relation(fields: [subjectId], references: [id])
+  grade            Int
+  orderIndex       Int
+  prerequisites    Concept[]           @relation("ConceptPrerequisites")
+  dependents       Concept[]           @relation("ConceptPrerequisites")
+  objectives       LearningObjective[]
+  records          LearningRecord[]
+  questions        Question[]
+  contents         ConceptContent[]
+  estimatedMinutes Int                 @default(30)
+}
+
+model ConceptContent {
+  id            String        @id @default(cuid())
+  conceptId     String
+  concept       Concept       @relation(fields: [conceptId], references: [id])
+  learningStyle LearningStyle
+  language      String        @default("en")
+  content       String        @db.Text
+  createdAt     DateTime      @default(now())
+
+  @@unique([conceptId, learningStyle, language])
+}
+
+model Question {
+  id          String  @id @default(cuid())
+  conceptId   String
+  concept     Concept @relation(fields: [conceptId], references: [id])
+  problem     String
+  type        String  @default("multiple_choice")
+  options     String[]
+  answer      String
+  explanation String  @db.Text
+  difficulty  String  @default("medium")
+  orderIndex  Int     @default(0)
+}
+
+model LearningObjective {
+  id          String  @id @default(cuid())
+  conceptId   String
+  concept     Concept @relation(fields: [conceptId], references: [id])
+  description String
+  orderIndex  Int
+}
+
+model LearningRecord {
+  id              String    @id @default(cuid())
+  studentId       String
+  student         Student   @relation(fields: [studentId], references: [id])
+  conceptId       String
+  concept         Concept   @relation(fields: [conceptId], references: [id])
+  masteryScore    Float     @default(0)
+  masteryAchieved Boolean   @default(false)
+  attempts        Int       @default(0)
+  lastAttemptAt   DateTime?
+  masteredAt      DateTime?
+  timeSpentMins   Int       @default(0)
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+}
+
+model LearningSession {
+  id              String        @id @default(cuid())
+  studentId       String
+  student         Student       @relation(fields: [studentId], references: [id])
+  conceptId       String
+  startedAt       DateTime      @default(now())
+  endedAt         DateTime?
+  interactions    Interaction[]
+  assessmentScore Float?
+}
+
+model Interaction {
+  id         String          @id @default(cuid())
+  sessionId  String
+  session    LearningSession @relation(fields: [sessionId], references: [id])
+  type       InteractionType
+  userInput  String?
+  aiResponse String?
+  correct    Boolean?
+  timestamp  DateTime        @default(now())
+}
+
+enum InteractionType {
+  EXPLANATION_REQUEST
+  QUESTION_ANSWER
+  PRACTICE_PROBLEM
+  HINT_REQUEST
+  CONCEPT_CHECK
+}
+
+model LearningProfile {
+  id            String        @id @default(cuid())
+  studentId     String
+  student       Student       @relation(fields: [studentId], references: [id])
+  detectedStyle LearningStyle
+  confidence    Float
+  dataPoints    Int
+  updatedAt     DateTime      @updatedAt
+}
