@@ -143,7 +143,7 @@ export function PracticeZone({ conceptId, conceptTitle, onScoreUpdate }: Practic
         conceptId,
         questionId: question.id,
         studentAnswer: answer,
-        hintsUsed,
+        hintsUsed: isBoardQuestion ? 0 : hintsUsed,
         correctStreak,
         isDiagramQuestion: question.isDiagramQuestion ?? false,
       }),
