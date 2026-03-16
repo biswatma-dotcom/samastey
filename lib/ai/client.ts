@@ -34,7 +34,7 @@ interface ChatParams {
 
 export async function sarvamChat(params: ChatParams): Promise<string> {
   const controller = new AbortController()
-  const timeout = setTimeout(() => controller.abort(), 60000) // 60s timeout
+  const timeout = setTimeout(() => controller.abort(), 55000) // 55s — leaves buffer before Vercel's 60s limit
 
   const res = await fetch(`${SARVAM_BASE_URL}/v1/chat/completions`, {
     method: 'POST',
@@ -70,6 +70,9 @@ export function sarvamStream(params: ChatParams): ReadableStream<Uint8Array> {
 
   return new ReadableStream({
     async start(controller) {
+      const streamAbort = new AbortController()
+      const streamTimeout = setTimeout(() => streamAbort.abort(), 55000) // 55s — graceful abort before Vercel's 60s limit
+
       try {
         const res = await fetch(`${SARVAM_BASE_URL}/v1/chat/completions`, {
           method: 'POST',
@@ -84,9 +87,11 @@ export function sarvamStream(params: ChatParams): ReadableStream<Uint8Array> {
             temperature: params.temperature ?? 0.7,
             stream: true,
           }),
+          signal: streamAbort.signal,
         })
 
         if (!res.ok) {
+          clearTimeout(streamTimeout)
           const err = await res.text()
           controller.error(Object.assign(new Error(`Sarvam API error: ${err}`), { status: res.status }))
           return
@@ -109,6 +114,7 @@ export function sarvamStream(params: ChatParams): ReadableStream<Uint8Array> {
             if (!line.startsWith('data: ')) continue
             const data = line.slice(6).trim()
             if (data === '[DONE]') {
+              clearTimeout(streamTimeout)
               controller.close()
               return
             }
@@ -140,8 +146,10 @@ export function sarvamStream(params: ChatParams): ReadableStream<Uint8Array> {
             }
           }
         }
+        clearTimeout(streamTimeout)
         controller.close()
       } catch (error) {
+        clearTimeout(streamTimeout)
         controller.error(error)
       }
     },
