@@ -30,11 +30,18 @@ export default async function LearnConceptPage({ params }: Props) {
     activeSession = await prisma.learningSession.create({
       data: { studentId: student.id, conceptId: params.conceptId },
     })
-    // Award XP for starting
-    await prisma.student.update({
-      where: { id: student.id },
-      data: { xpTotal: { increment: 10 }, lastActiveAt: new Date() },
-    })
+    // Track "explored" in LearningRecord + award XP for starting
+    await Promise.all([
+      prisma.learningRecord.upsert({
+        where: { studentId_conceptId: { studentId: student.id, conceptId: params.conceptId } },
+        create: { studentId: student.id, conceptId: params.conceptId, attempts: 1, lastAttemptAt: new Date() },
+        update: { attempts: { increment: 1 }, lastAttemptAt: new Date() },
+      }),
+      prisma.student.update({
+        where: { id: student.id },
+        data: { xpTotal: { increment: 10 }, lastActiveAt: new Date() },
+      }),
+    ])
   }
 
   return (

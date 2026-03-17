@@ -1,12 +1,18 @@
 import { getServerSession } from 'next-auth'
 import { redirect } from 'next/navigation'
 import Link from 'next/link'
+import { Suspense } from 'react'
 import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/db/prisma'
-import { getWeeklyActivity } from '@/lib/db/queries/progress'
+import { getWeeklyActivity, getSubjectProgress } from '@/lib/db/queries/progress'
 import { StreakWidget } from '@/components/dashboard/StreakWidget'
+import { GradeFilter } from '@/components/shared/GradeFilter'
 
-export default async function DashboardPage() {
+interface Props {
+  searchParams: { grade?: string }
+}
+
+export default async function DashboardPage({ searchParams }: Props) {
   const session = await getServerSession(authOptions)
   if (!session?.user) redirect('/login')
 
@@ -17,7 +23,10 @@ export default async function DashboardPage() {
 
   if (!student) redirect('/login')
 
-  const [weeklyActivity, recentRecords] = await Promise.all([
+  const grade = searchParams.grade ? parseInt(searchParams.grade) : student.grade
+  const activeGrade = grade >= 1 && grade <= 12 ? grade : student.grade
+
+  const [weeklyActivity, recentRecords, subjectProgress] = await Promise.all([
     getWeeklyActivity(student.id),
     prisma.learningRecord.findMany({
       where: { studentId: student.id },
@@ -25,23 +34,29 @@ export default async function DashboardPage() {
       take: 5,
       include: { concept: { include: { subject: { select: { name: true } } } } },
     }),
+    getSubjectProgress(student.id, activeGrade, student.board),
   ])
 
   const nextConcept = await prisma.concept.findFirst({
     where: {
-      subject: { grade: student.grade, board: student.board },
+      subject: { grade: activeGrade, board: student.board },
       records: { none: { studentId: student.id, masteryAchieved: true } },
     },
     orderBy: { orderIndex: 'asc' },
     include: { subject: { select: { name: true } } },
   })
 
-  const totalMastered = await prisma.learningRecord.count({
-    where: { studentId: student.id, masteryAchieved: true },
-  })
+  const [totalMastered, totalExplored] = await Promise.all([
+    prisma.learningRecord.count({
+      where: { studentId: student.id, masteryAchieved: true },
+    }),
+    prisma.learningRecord.count({
+      where: { studentId: student.id },
+    }),
+  ])
 
-  // Build 7-day activity grid
-  const days: { label: string; key: string; active: boolean }[] = []
+  // Build 7-day activity grid with counts
+  const days: { label: string; key: string; count: number }[] = []
   for (let i = 6; i >= 0; i--) {
     const d = new Date()
     d.setDate(d.getDate() - i)
@@ -49,9 +64,14 @@ export default async function DashboardPage() {
     days.push({
       label: d.toLocaleDateString('en', { weekday: 'short' }).slice(0, 1),
       key,
-      active: !!weeklyActivity[key],
+      count: weeklyActivity[key]?.attempted ?? 0,
     })
   }
+  const maxCount = Math.max(...days.map((d) => d.count), 1)
+
+  // Subject coverage stats
+  const activeSubjects = subjectProgress.filter((s: any) => s.inProgressConcepts > 0 || s.masteredConcepts > 0).length
+  const totalSubjects = subjectProgress.length
 
   const firstName = student.user.name.split(' ')[0]
 
@@ -64,19 +84,24 @@ export default async function DashboardPage() {
             Hey, {firstName} 👋
           </h1>
           <p className="mt-1 text-sm text-gray-500">
-            Class {student.grade} · {student.board} · 2026–27
+            Class {activeGrade} · {student.board} · 2026–27
           </p>
         </div>
         <StreakWidget streakDays={student.streakDays} xpTotal={student.xpTotal} />
       </div>
 
+      {/* Grade filter */}
+      <Suspense>
+        <GradeFilter currentGrade={activeGrade} studentGrade={student.grade} />
+      </Suspense>
+
       {/* Stats row */}
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
         {[
-          { label: 'Total XP', value: student.xpTotal.toLocaleString(), icon: '⚡', color: 'text-amber-500' },
+          { label: 'Topics Explored', value: totalExplored, icon: '📖', color: 'text-orange-500' },
           { label: 'Day Streak', value: `${student.streakDays}d`, icon: '🔥', color: 'text-orange-500' },
           { label: 'Concepts Mastered', value: totalMastered, icon: '✅', color: 'text-green-600' },
-          { label: 'Class', value: `${student.grade} ${student.board}`, icon: '🎓', color: 'text-orange-600' },
+          { label: 'Subjects Active', value: `${activeSubjects}/${totalSubjects}`, icon: '📚', color: 'text-orange-600' },
         ].map((s) => (
           <div
             key={s.label}
@@ -110,7 +135,7 @@ export default async function DashboardPage() {
         <div className="rounded-xl border border-green-200 bg-green-50 p-5 dark:border-green-900 dark:bg-green-950 text-center">
           <p className="text-2xl">🎉</p>
           <p className="mt-1 font-semibold text-green-800 dark:text-green-200">
-            All concepts mastered for Class {student.grade}!
+            All concepts mastered for Class {activeGrade}!
           </p>
         </div>
       )}
@@ -119,59 +144,100 @@ export default async function DashboardPage() {
         {/* Weekly activity */}
         <div className="rounded-xl border border-gray-200 bg-white p-5 dark:border-gray-800 dark:bg-gray-900">
           <h2 className="mb-4 text-sm font-semibold text-gray-700 dark:text-gray-300">
-            This Week
+            Topics Studied This Week
           </h2>
-          <div className="flex items-end gap-2">
+          <div className="flex items-end gap-2 h-16">
             {days.map((d) => (
               <div key={d.key} className="flex flex-1 flex-col items-center gap-1">
+                <span className="text-xs text-gray-400 tabular-nums">
+                  {d.count > 0 ? d.count : ''}
+                </span>
                 <div
                   className={`w-full rounded-md transition-all ${
-                    d.active
-                      ? 'bg-orange-500 h-8'
-                      : 'bg-gray-100 dark:bg-gray-800 h-4'
+                    d.count > 0
+                      ? 'bg-orange-500'
+                      : 'bg-gray-100 dark:bg-gray-800'
                   }`}
+                  style={{
+                    height: d.count > 0
+                      ? `${Math.max(12, Math.round((d.count / maxCount) * 32))}px`
+                      : '8px',
+                  }}
                 />
                 <span className="text-xs text-gray-400">{d.label}</span>
               </div>
             ))}
           </div>
-          {!days.some((d) => d.active) && (
+          {!days.some((d) => d.count > 0) && (
             <p className="mt-3 text-xs text-gray-400 text-center">No activity yet this week. Start learning!</p>
           )}
         </div>
 
-        {/* Recent activity */}
+        {/* Subject coverage */}
         <div className="rounded-xl border border-gray-200 bg-white p-5 dark:border-gray-800 dark:bg-gray-900">
           <h2 className="mb-3 text-sm font-semibold text-gray-700 dark:text-gray-300">
-            Recently Studied
+            Subject Coverage
           </h2>
-          {recentRecords.length === 0 ? (
-            <p className="text-sm text-gray-400">Nothing yet — start a concept to see activity here.</p>
+          {subjectProgress.length === 0 ? (
+            <p className="text-sm text-gray-400">No subjects found for your class and board.</p>
           ) : (
-            <div className="space-y-2">
-              {recentRecords.map((r: any) => (
-                <Link
-                  key={r.id}
-                  href={`/learn/${r.conceptId}`}
-                  className="flex items-center gap-3 rounded-lg px-3 py-2 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors"
-                >
-                  <span className="text-base">
-                    {r.masteryAchieved ? '✅' : '📖'}
-                  </span>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium text-gray-800 dark:text-gray-200 truncate">
-                      {r.concept.title}
-                    </p>
-                    <p className="text-xs text-gray-400">{r.concept.subject.name}</p>
+            <div className="space-y-3">
+              {(subjectProgress as any[]).map((s) => (
+                <div key={s.subjectId}>
+                  <div className="flex items-center justify-between mb-1">
+                    <span className="text-xs font-medium text-gray-700 dark:text-gray-300 truncate max-w-[70%]">
+                      {s.subjectName}
+                    </span>
+                    <span className="text-xs text-gray-400 shrink-0">
+                      {s.masteredConcepts}/{s.totalConcepts}
+                    </span>
                   </div>
-                  <span className="text-xs text-gray-400 shrink-0">
-                    {Math.round(r.masteryScore)}%
-                  </span>
-                </Link>
+                  <div className="h-1.5 w-full rounded-full bg-gray-100 dark:bg-gray-700">
+                    <div
+                      className="h-full rounded-full bg-orange-500 transition-all"
+                      style={{ width: `${s.masteryPercent}%` }}
+                    />
+                  </div>
+                </div>
               ))}
             </div>
           )}
         </div>
+      </div>
+
+      {/* Recent activity */}
+      <div className="rounded-xl border border-gray-200 bg-white p-5 dark:border-gray-800 dark:bg-gray-900">
+        <h2 className="mb-3 text-sm font-semibold text-gray-700 dark:text-gray-300">
+          Recently Studied
+        </h2>
+        {recentRecords.length === 0 ? (
+          <p className="text-sm text-gray-400">Nothing yet — start a concept to see activity here.</p>
+        ) : (
+          <div className="space-y-1">
+            {recentRecords.map((r: any) => (
+              <Link
+                key={r.id}
+                href={`/learn/${r.conceptId}`}
+                className="flex items-center gap-3 rounded-lg px-3 py-2.5 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors"
+              >
+                <span className="text-base shrink-0">
+                  {r.masteryAchieved ? '✅' : '📖'}
+                </span>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-medium text-gray-800 dark:text-gray-200 truncate">
+                    {r.concept.title}
+                  </p>
+                  <p className="text-xs text-gray-400">{r.concept.subject.name}</p>
+                </div>
+                <div className="text-right shrink-0">
+                  <p className={`text-xs font-medium ${r.masteryAchieved ? 'text-green-600' : 'text-orange-500'}`}>
+                    {r.masteryAchieved ? 'Mastered' : `${Math.round(r.masteryScore)}% done`}
+                  </p>
+                </div>
+              </Link>
+            ))}
+          </div>
+        )}
       </div>
 
       {/* Quick links */}

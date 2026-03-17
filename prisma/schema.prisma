@@ -160,6 +160,8 @@ model LearningRecord {
   timeSpentMins   Int       @default(0)
   createdAt       DateTime  @default(now())
   updatedAt       DateTime  @updatedAt
+
+  @@unique([studentId, conceptId])
 }
 
 model LearningSession {

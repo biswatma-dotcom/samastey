@@ -10,7 +10,6 @@ interface Concept {
   estimatedMinutes: number
   mastered: boolean
   inProgress: boolean
-  prereqMet: boolean
   masteryScore: number
 }
 
@@ -118,20 +117,18 @@ export function SubjectAccordion({ subjects }: { subjects: SubjectGroup[] }) {
                 {subject.concepts.map((concept) => (
                   <Link
                     key={concept.id}
-                    href={concept.prereqMet ? `/learn/${concept.id}` : '#'}
+                    href={`/learn/${concept.id}`}
                     className={cn(
                       'flex items-center gap-4 px-5 py-3 transition-all',
                       concept.mastered
                         ? 'bg-green-50 dark:bg-green-950/40 hover:bg-green-100 dark:hover:bg-green-950/60'
                         : concept.inProgress
                         ? 'bg-orange-50 dark:bg-orange-950/40 hover:bg-orange-100 dark:hover:bg-orange-950/60'
-                        : concept.prereqMet
-                        ? 'hover:bg-gray-50 dark:hover:bg-gray-800'
-                        : 'cursor-not-allowed opacity-50'
+                        : 'hover:bg-gray-50 dark:hover:bg-gray-800'
                     )}
                   >
                     <span className="text-base shrink-0">
-                      {concept.mastered ? '✅' : concept.inProgress ? '📖' : concept.prereqMet ? '⭕' : '🔒'}
+                      {concept.mastered ? '✅' : concept.inProgress ? '📖' : '⭕'}
                     </span>
                     <div className="flex-1 min-w-0">
                       <p
@@ -153,9 +150,6 @@ export function SubjectAccordion({ subjects }: { subjects: SubjectGroup[] }) {
                       <span className="text-xs text-orange-600 font-medium shrink-0">
                         {Math.round(concept.masteryScore)}%
                       </span>
-                    )}
-                    {!concept.prereqMet && !concept.mastered && (
-                      <span className="text-xs text-gray-400 shrink-0">Locked</span>
                     )}
                   </Link>
                 ))}

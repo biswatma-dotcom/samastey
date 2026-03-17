@@ -27,9 +27,24 @@ export function ConceptExplainer({ conceptId, conceptTitle, objectives }: Concep
   const [thread, setThread] = useState<ThreadItem[]>([])
   const [question, setQuestion] = useState('')
   const [started, setStarted] = useState(false)
+  const [marked, setMarked] = useState(false)
+  const [marking, setMarking] = useState(false)
   const bottomRef = useRef<HTMLDivElement>(null)
 
   const isAnyStreaming = thread.some((t) => t.streaming)
+  const firstExplanationDone = thread.length > 0 && !thread[0].streaming && thread[0].content.length > 100
+
+  async function handleMarkDone() {
+    if (marking || marked) return
+    setMarking(true)
+    await fetch('/api/learn/complete', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ conceptId }),
+    })
+    setMarked(true)
+    setMarking(false)
+  }
 
   async function addExplanation(label: string, payload?: { studentQuestion?: string; previousApproach?: string }) {
     const id = crypto.randomUUID()
@@ -178,6 +193,32 @@ export function ConceptExplainer({ conceptId, conceptTitle, objectives }: Concep
           </div>
         ))}
       </div>
+
+      {/* Mark as done — shown after first explanation loads */}
+      {firstExplanationDone && !isAnyStreaming && (
+        <div className="rounded-xl border border-gray-200 bg-gray-50 p-4 dark:border-gray-800 dark:bg-gray-900 flex items-center justify-between gap-4">
+          <div>
+            <p className="text-sm font-medium text-gray-800 dark:text-gray-200">
+              {marked ? '✅ Marked as understood!' : 'Done reading?'}
+            </p>
+            <p className="text-xs text-gray-500 mt-0.5">
+              {marked
+                ? 'Great work! This concept is now in your mastered list.'
+                : 'Mark this concept as understood to track your progress.'}
+            </p>
+          </div>
+          {!marked && (
+            <Button
+              size="sm"
+              onClick={handleMarkDone}
+              disabled={marking}
+              className="shrink-0 bg-green-600 hover:bg-green-700 text-white"
+            >
+              {marking ? 'Saving...' : 'I understand this ✓'}
+            </Button>
+          )}
+        </div>
+      )}
 
       <div ref={bottomRef} />
     </div>
