@@ -244,6 +244,7 @@ IMPORTANT:
 - Use exact ${textbook} textbook terminology
 - The question must be about ${params.subjectName} — specifically "${params.conceptTitle}"
 - Do NOT include MCQ options
+- The "problem" field must be 100% self-contained — if the question refers to a passage, sentence, equation, diagram description, or data, include it IN FULL inside the problem text. Never write "the following" without including the actual content.
 - For 3+ mark questions, diagram questions are encouraged where relevant (e.g. "Draw a labelled diagram of...", "Draw the graph of...", "Plot the following on a coordinate plane...")
 
 DIAGRAM QUESTIONS — when isDiagramQuestion is true, include a modelDiagram field:

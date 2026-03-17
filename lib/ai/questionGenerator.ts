@@ -50,6 +50,8 @@ ${styleHint}${avoidSection}
 
 The question should genuinely test understanding, not just recall. For 'hard', test application or multi-step reasoning. For 'easy', test core definition or direct formula use.
 
+CRITICAL: The "problem" field must be 100% self-contained. If the question refers to a sentence, passage, equation, table, or data — include it IN FULL inside the problem text. Never write "the following sentence" or "the above passage" without actually including that sentence/passage in the problem field itself.
+
 Return ONLY valid JSON (no markdown, no extra text, no HTML tags like <br> or <p>):
 {
   "problem": "the question text",
