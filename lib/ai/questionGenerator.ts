@@ -4,6 +4,21 @@ import { GENERATE_BOARD_QUESTION, EVALUATE_BOARD_ANSWER } from './prompts'
 
 export type Difficulty = 'easy' | 'medium' | 'hard'
 
+// Detects questions that reference content they forgot to include
+const INCOMPLETE_PATTERNS = [
+  /correct the following sentence\s*[.:]?\s*$/i,
+  /read the following (sentence|passage|paragraph|extract)\s*[.:]?\s*$/i,
+  /refer(ring)? to the (following|above|given)\s*[.:]?\s*$/i,
+  /based on the (following|above|given) (sentence|passage|paragraph|table|data)\s*[.:]?\s*$/i,
+  /the following (sentence|passage|paragraph|table|equation)\s*[.:]?\s*$/i,
+  /given (below|above)\s*[.:]?\s*$/i,
+]
+
+function isIncomplete(problem: string): boolean {
+  const trimmed = problem.trim()
+  return INCOMPLETE_PATTERNS.some((re) => re.test(trimmed))
+}
+
 export function pickDifficulty(correctStreak: number, lastWasCorrect: boolean | null): Difficulty {
   if (lastWasCorrect === false) return 'easy'
   if (correctStreak >= 3) return 'hard'
@@ -60,16 +75,23 @@ Return ONLY valid JSON (no markdown, no extra text, no HTML tags like <br> or <p
   "explanation": "step-by-step solution explanation (2-3 sentences)"
 }`
 
-  const raw = await sarvamChat({ messages: [{ role: 'user', content: prompt }], max_tokens: 4000 })
-  const parsed = JSON.parse(extractJSON(raw))
+  const retryPrompt = prompt + '\n\nREMINDER: Include the complete sentence/passage/data INSIDE the problem text. Do not say "the following sentence" without providing it.'
 
-  return {
-    problem: parsed.problem as string,
-    type: 'multiple_choice' as const,
-    options: parsed.options as string[],
-    answer: parsed.answer as string,
-    explanation: parsed.explanation as string,
+  for (let attempt = 0; attempt < 2; attempt++) {
+    const raw = await sarvamChat({ messages: [{ role: 'user', content: attempt === 0 ? prompt : retryPrompt }], max_tokens: 4000 })
+    const parsed = JSON.parse(extractJSON(raw))
+    const problem = parsed.problem as string
+    if (!isIncomplete(problem)) {
+      return {
+        problem,
+        type: 'multiple_choice' as const,
+        options: parsed.options as string[],
+        answer: parsed.answer as string,
+        explanation: parsed.explanation as string,
+      }
+    }
   }
+  throw new Error('Generated question was incomplete after retry')
 }
 
 // Board exam marks distribution — weighted toward common question types
@@ -87,8 +109,14 @@ export async function generateBoardQuestion(params: {
   const marks = BOARD_MARKS_OPTIONS[Math.floor(Math.random() * BOARD_MARKS_OPTIONS.length)]
 
   const prompt = GENERATE_BOARD_QUESTION({ ...params, marks })
-  const raw = await sarvamChat({ messages: [{ role: 'user', content: prompt }], max_tokens: 4000 })
-  const parsed = JSON.parse(extractJSON(raw))
+  const retryPrompt = prompt + '\n\nREMINDER: The problem field must include the complete sentence/passage/data inline. Never say "the following sentence" without providing it.'
+
+  let parsed: any
+  for (let attempt = 0; attempt < 2; attempt++) {
+    const raw = await sarvamChat({ messages: [{ role: 'user', content: attempt === 0 ? prompt : retryPrompt }], max_tokens: 4000 })
+    parsed = JSON.parse(extractJSON(raw))
+    if (!isIncomplete(parsed.problem as string)) break
+  }
 
   return {
     problem: parsed.problem as string,
