@@ -55,38 +55,6 @@ export interface ConceptWithProgress {
   } | null
 }
 
-export type QuestionMode = 'mcq' | 'board'
-
-export interface ModelDiagram {
-  format: 'svg' | 'chart' | 'mermaid'
-  code: string
-}
-
-export interface PracticeQuestion {
-  problem: string
-  type: 'multiple_choice' | 'fill_in_blank' | 'short_answer' | 'board_1' | 'board_2' | 'board_3' | 'board_5'
-  options?: string[]
-  answer: string
-  explanation: string
-  // board questions only
-  marks?: number
-  markingScheme?: string[]
-  isDiagramQuestion?: boolean
-  modelDiagram?: ModelDiagram | null
-}
-
-export interface EvaluationResult {
-  isCorrect: boolean
-  partialCredit: number
-  feedback: string
-  mistakeType: 'conceptual' | 'calculation' | 'careless' | null
-  hint: string
-  // board questions only
-  marksAwarded?: number
-  marksTotal?: number
-  markingBreakdown?: string
-}
-
 export interface MasteryUpdate {
   newScore: number
   masteryAchieved: boolean

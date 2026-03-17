@@ -39,13 +39,8 @@ export async function GET(req: NextRequest) {
   }
 
   const allConceptIds = concepts.map((c) => c.id)
-  const [contentCounts, questionCounts, materialCounts] = await Promise.all([
+  const [contentCounts, materialCounts] = await Promise.all([
     prisma.conceptContent.groupBy({
-      by: ['conceptId'],
-      where: { conceptId: { in: allConceptIds } },
-      _count: { conceptId: true },
-    }),
-    prisma.question.groupBy({
       by: ['conceptId'],
       where: { conceptId: { in: allConceptIds } },
       _count: { conceptId: true },
@@ -58,13 +53,11 @@ export async function GET(req: NextRequest) {
   ])
 
   const contentByConceptId = Object.fromEntries(contentCounts.map((r) => [r.conceptId, r._count.conceptId]))
-  const questionsByConceptId = Object.fromEntries(questionCounts.map((r) => [r.conceptId, r._count.conceptId]))
   const materialsByConceptId = Object.fromEntries(materialCounts.map((r) => [r.conceptId, r._count.conceptId]))
 
   const data = subjects.map((s) => {
     const cids = conceptsBySubject[s.id] ?? []
     const totalContent = cids.reduce((sum, id) => sum + (contentByConceptId[id] ?? 0), 0)
-    const totalQuestions = cids.reduce((sum, id) => sum + (questionsByConceptId[id] ?? 0), 0)
     const totalMaterials = cids.reduce((sum, id) => sum + (materialsByConceptId[id] ?? 0), 0)
     return {
       id: s.id,
@@ -75,7 +68,6 @@ export async function GET(req: NextRequest) {
       isActive: s.isActive,
       conceptCount: s._count.concepts,
       contentCount: totalContent,
-      questionCount: totalQuestions,
       materialCount: totalMaterials,
     }
   })

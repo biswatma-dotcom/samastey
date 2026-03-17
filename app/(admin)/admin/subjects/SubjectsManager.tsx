@@ -11,7 +11,6 @@ interface SubjectRow {
   isActive: boolean
   conceptCount: number
   contentCount: number
-  questionCount: number
   materialCount: number
 }
 
@@ -1111,16 +1110,16 @@ export function SubjectsManager() {
         <table className="w-full text-sm">
           <thead className="border-b border-gray-800 bg-gray-900">
             <tr>
-              {['Subject', 'Grade', 'Board', 'Active', 'Status', 'Content', 'Questions', 'Actions'].map((h) => (
+              {['Subject', 'Grade', 'Board', 'Active', 'Status', 'Content', 'Actions'].map((h) => (
                 <th key={h} className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">{h}</th>
               ))}
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-800 bg-gray-950">
             {loading ? (
-              <tr><td colSpan={8} className="py-12 text-center text-gray-500">Loading...</td></tr>
+              <tr><td colSpan={7} className="py-12 text-center text-gray-500">Loading...</td></tr>
             ) : subjects.length === 0 ? (
-              <tr><td colSpan={8} className="py-12 text-center text-gray-500">No subjects found</td></tr>
+              <tr><td colSpan={7} className="py-12 text-center text-gray-500">No subjects found</td></tr>
             ) : subjects.map((s) => (
               <>
                 <tr key={s.id} className="hover:bg-gray-900/50 transition-colors">
@@ -1146,7 +1145,6 @@ export function SubjectsManager() {
                   </td>
                   <td className="px-4 py-3"><StatusBadge count={s.conceptCount} /></td>
                   <td className="px-4 py-3 text-gray-400">{s.contentCount}</td>
-                  <td className="px-4 py-3 text-gray-400">{s.questionCount}</td>
                   <td className="px-4 py-3">
                     <div className="flex gap-2 flex-wrap">
                       {s.conceptCount === 0 ? (
@@ -1196,14 +1194,14 @@ export function SubjectsManager() {
                 </tr>
                 {topicsSubjectId === s.id && (
                   <tr key={`${s.id}-topics`}>
-                    <td colSpan={8} className="px-4 pb-4">
+                    <td colSpan={7} className="px-4 pb-4">
                       <TopicsPanel subjectId={s.id} onClose={() => setTopicsSubjectId(null)} />
                     </td>
                   </tr>
                 )}
                 {materialsSubjectId === s.id && (
                   <tr key={`${s.id}-materials`}>
-                    <td colSpan={8} className="px-4 pb-4">
+                    <td colSpan={7} className="px-4 pb-4">
                       <MaterialsPanel subjectId={s.id} onClose={() => setMaterialsSubjectId(null)} />
                     </td>
                   </tr>
