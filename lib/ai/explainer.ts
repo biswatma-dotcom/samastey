@@ -1,8 +1,9 @@
 import { LearningStyle, Pace, Language } from '@/types'
 import { EXPLAIN_CONCEPT, EXPLAIN_DIFFERENTLY, GENERATE_HINT, ANSWER_STUDENT_QUESTION } from './prompts'
 import { sarvamChat, sarvamStream } from './client'
+import { getTokenLimit } from '@/lib/db/appSettings'
 
-export function streamExplanation(params: {
+export async function streamExplanation(params: {
   conceptTitle: string
   conceptDescription: string
   learningStyle: LearningStyle
@@ -12,33 +13,36 @@ export function streamExplanation(params: {
   board: string
   objectives: string[]
   language?: Language
-}): ReadableStream<Uint8Array> {
+}): Promise<ReadableStream<Uint8Array>> {
   const prompt = EXPLAIN_CONCEPT(params)
-  return sarvamStream({ messages: [{ role: 'user', content: prompt }], max_tokens: 8000 })
+  const max_tokens = await getTokenLimit('explain')
+  return sarvamStream({ messages: [{ role: 'user', content: prompt }], max_tokens })
 }
 
-export function streamAlternateExplanation(params: {
+export async function streamAlternateExplanation(params: {
   conceptTitle: string
   learningStyle: LearningStyle
   previousApproach: string
   grade: number
   board: string
   language?: Language
-}): ReadableStream<Uint8Array> {
+}): Promise<ReadableStream<Uint8Array>> {
   const prompt = EXPLAIN_DIFFERENTLY(params)
-  return sarvamStream({ messages: [{ role: 'user', content: prompt }], max_tokens: 5000 })
+  const max_tokens = await getTokenLimit('alternate')
+  return sarvamStream({ messages: [{ role: 'user', content: prompt }], max_tokens })
 }
 
-export function streamAnswer(params: {
+export async function streamAnswer(params: {
   conceptTitle: string
   studentQuestion: string
   learningStyle: LearningStyle
   grade: number
   board: string
   language?: Language
-}): ReadableStream<Uint8Array> {
+}): Promise<ReadableStream<Uint8Array>> {
   const prompt = ANSWER_STUDENT_QUESTION(params)
-  return sarvamStream({ messages: [{ role: 'user', content: prompt }], max_tokens: 5000 })
+  const max_tokens = await getTokenLimit('answer')
+  return sarvamStream({ messages: [{ role: 'user', content: prompt }], max_tokens })
 }
 
 export async function generateHint(params: {
@@ -48,5 +52,6 @@ export async function generateHint(params: {
   studentAnswer?: string
 }): Promise<string> {
   const prompt = GENERATE_HINT(params)
-  return sarvamChat({ messages: [{ role: 'user', content: prompt }], max_tokens: 3000 })
+  const max_tokens = await getTokenLimit('hint')
+  return sarvamChat({ messages: [{ role: 'user', content: prompt }], max_tokens })
 }

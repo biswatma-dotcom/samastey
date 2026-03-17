@@ -178,6 +178,12 @@ enum InteractionType {
   CONCEPT_CHECK
 }
 
+model AppSetting {
+  key       String   @id
+  value     String
+  updatedAt DateTime @updatedAt
+}
+
 model LearningProfile {
   id            String        @id @default(cuid())
   studentId     String

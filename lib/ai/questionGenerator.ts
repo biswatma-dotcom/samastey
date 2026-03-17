@@ -1,6 +1,7 @@
 import { LearningStyle, Language, LANGUAGE_NAMES } from '@/types'
 import { sarvamChat, extractJSON } from './client'
 import { GENERATE_BOARD_QUESTION, EVALUATE_BOARD_ANSWER } from './prompts'
+import { getTokenLimit } from '@/lib/db/appSettings'
 
 export type Difficulty = 'easy' | 'medium' | 'hard'
 
@@ -89,8 +90,9 @@ Return ONLY valid JSON (no markdown, no extra text, no HTML tags like <br> or <p
 
   const retryPrompt = prompt + '\n\nREMINDER: Include the complete sentence/passage/data INSIDE the problem text. Do not say "the following sentence" without providing it.'
 
+  const practiceTokens = await getTokenLimit('practice')
   for (let attempt = 0; attempt < 2; attempt++) {
-    const raw = await sarvamChat({ messages: [{ role: 'user', content: attempt === 0 ? prompt : retryPrompt }], max_tokens: 4000 })
+    const raw = await sarvamChat({ messages: [{ role: 'user', content: attempt === 0 ? prompt : retryPrompt }], max_tokens: practiceTokens })
     const parsed = JSON.parse(extractJSON(raw))
     const problem = parsed.problem as string
     if (!isIncomplete(problem)) {
@@ -123,9 +125,10 @@ export async function generateBoardQuestion(params: {
   const prompt = GENERATE_BOARD_QUESTION({ ...params, marks })
   const retryPrompt = prompt + '\n\nREMINDER: The problem field must include the complete sentence/passage/data inline. Never say "the following sentence" without providing it.'
 
+  const boardTokens = await getTokenLimit('practice')
   let parsed: any
   for (let attempt = 0; attempt < 2; attempt++) {
-    const raw = await sarvamChat({ messages: [{ role: 'user', content: attempt === 0 ? prompt : retryPrompt }], max_tokens: 4000 })
+    const raw = await sarvamChat({ messages: [{ role: 'user', content: attempt === 0 ? prompt : retryPrompt }], max_tokens: boardTokens })
     parsed = JSON.parse(extractJSON(raw))
     if (!isIncomplete(parsed.problem as string)) break
   }
@@ -156,7 +159,8 @@ export async function evaluateBoardAnswer(params: {
   isDiagramQuestion?: boolean
 }) {
   const prompt = EVALUATE_BOARD_ANSWER(params)
-  const raw = await sarvamChat({ messages: [{ role: 'user', content: prompt }], max_tokens: 2000 })
+  const evalTokens = await getTokenLimit('evaluate')
+  const raw = await sarvamChat({ messages: [{ role: 'user', content: prompt }], max_tokens: evalTokens })
   const parsed = JSON.parse(extractJSON(raw))
   const marksAwarded = Number(parsed.marksAwarded ?? 0)
   const marksTotal = Number(parsed.marksTotal ?? params.marks) || params.marks
