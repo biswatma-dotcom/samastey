@@ -80,13 +80,14 @@ function MaterialsPanel({ subjectId, onClose }: { subjectId: string; onClose: ()
   const [concepts, setConcepts] = useState<ConceptWithMaterials[]>([])
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
+  const [uploading, setUploading] = useState(false)
   const [deleting, setDeleting] = useState<string | null>(null)
   const [form, setForm] = useState<MaterialFormState | null>(null)
-  const [toast, setToast] = useState<string | null>(null)
+  const [toast, setToast] = useState<{ text: string; type: 'ok' | 'err' } | null>(null)
 
-  function showToast(msg: string) {
-    setToast(msg)
-    setTimeout(() => setToast(null), 3000)
+  function showToast(text: string, type: 'ok' | 'err' = 'ok') {
+    setToast({ text, type })
+    setTimeout(() => setToast(null), 4000)
   }
 
   const loadMaterials = useCallback(async () => {
@@ -111,12 +112,34 @@ function MaterialsPanel({ subjectId, onClose }: { subjectId: string; onClose: ()
     setForm(null)
   }
 
+  async function handlePdfUpload(e: React.ChangeEvent<HTMLInputElement>, conceptId: string) {
+    const file = e.target.files?.[0]
+    if (!file) return
+    e.target.value = ''
+    setUploading(true)
+    try {
+      const fd = new FormData()
+      fd.append('file', file)
+      fd.append('conceptId', conceptId)
+      fd.append('title', file.name.replace(/\.pdf$/i, ''))
+      fd.append('source', file.name)
+      const res = await fetch('/api/admin/materials/upload', { method: 'POST', body: fd })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error ?? 'Upload failed')
+      showToast(`PDF uploaded — ${data.extractedLength.toLocaleString()} characters extracted.`)
+      await loadMaterials()
+    } catch (err: any) {
+      showToast(err.message, 'err')
+    } finally {
+      setUploading(false)
+    }
+  }
+
   async function saveForm() {
     if (!form || !form.content.trim()) return
     setSaving(true)
     try {
       if (form.materialId) {
-        // Update
         await fetch('/api/admin/materials', {
           method: 'PATCH',
           headers: { 'Content-Type': 'application/json' },
@@ -124,7 +147,6 @@ function MaterialsPanel({ subjectId, onClose }: { subjectId: string; onClose: ()
         })
         showToast('Material updated.')
       } else {
-        // Create
         await fetch('/api/admin/materials', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -159,8 +181,14 @@ function MaterialsPanel({ subjectId, onClose }: { subjectId: string; onClose: ()
         <button onClick={onClose} className="text-xs text-gray-500 hover:text-gray-300">Close</button>
       </div>
 
+      {uploading && (
+        <div className="mb-3 rounded-lg bg-orange-500/15 px-3 py-2 text-xs text-orange-400 flex items-center gap-2">
+          <span className="inline-flex gap-0.5">{[0,1,2].map(i=><span key={i} className="inline-block h-1.5 w-1.5 rounded-full bg-orange-400 animate-bounce" style={{animationDelay:`${i*150}ms`}}/>)}</span>
+          Extracting text from PDF...
+        </div>
+      )}
       {toast && (
-        <div className="mb-3 rounded-lg bg-green-500/15 px-3 py-2 text-xs text-green-400">{toast}</div>
+        <div className={`mb-3 rounded-lg px-3 py-2 text-xs ${toast.type === 'ok' ? 'bg-green-500/15 text-green-400' : 'bg-red-500/15 text-red-400'}`}>{toast.text}</div>
       )}
 
       {loading ? (
@@ -182,14 +210,27 @@ function MaterialsPanel({ subjectId, onClose }: { subjectId: string; onClose: ()
                       : <span className="rounded-full bg-gray-700/50 px-2 py-0.5 text-xs text-gray-500">No material</span>
                     }
                   </div>
-                  <div className="flex gap-1.5 flex-wrap">
+                  <div className="flex gap-1.5 flex-wrap items-center">
                     {!hasMaterial && !isEditing && (
                       <button
                         onClick={() => openAddForm(concept.id)}
                         className="rounded-lg bg-orange-500/15 px-2.5 py-1 text-xs font-medium text-orange-400 hover:bg-orange-500/25 transition-colors"
                       >
-                        + Add Material
+                        + Paste Text
                       </button>
+                    )}
+                    {/* PDF upload — always available if no form is open */}
+                    {!isEditing && (
+                      <label className={`cursor-pointer rounded-lg px-2.5 py-1 text-xs font-medium transition-colors ${uploading ? 'opacity-40 pointer-events-none' : ''} bg-purple-500/15 text-purple-400 hover:bg-purple-500/25`}>
+                        Upload PDF
+                        <input
+                          type="file"
+                          accept=".pdf,application/pdf"
+                          className="sr-only"
+                          onChange={(e) => handlePdfUpload(e, concept.id)}
+                          disabled={uploading}
+                        />
+                      </label>
                     )}
                     {hasMaterial && concept.materials.map((mat) => (
                       <div key={mat.id} className="flex gap-1">
