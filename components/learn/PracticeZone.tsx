@@ -2,6 +2,8 @@
 
 import { useState } from 'react'
 import dynamic from 'next/dynamic'
+import ReactMarkdown from 'react-markdown'
+import remarkGfm from 'remark-gfm'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
@@ -239,9 +241,14 @@ export function PracticeZone({ conceptId, conceptTitle, onScoreUpdate }: Practic
       {/* Question */}
       <Card>
         <CardContent className="pt-5">
-          <p className="font-medium text-gray-900 dark:text-gray-100 leading-relaxed">
-            {question!.problem}
-          </p>
+          <div className="prose prose-sm prose-orange dark:prose-invert max-w-none text-gray-900 dark:text-gray-100
+            [&_table]:w-full [&_table]:border-collapse [&_table]:text-sm
+            [&_th]:border [&_th]:border-gray-300 [&_th]:bg-gray-50 [&_th]:px-3 [&_th]:py-1.5 [&_th]:text-left [&_th]:font-semibold dark:[&_th]:border-gray-600 dark:[&_th]:bg-gray-800
+            [&_td]:border [&_td]:border-gray-200 [&_td]:px-3 [&_td]:py-1.5 dark:[&_td]:border-gray-700">
+            <ReactMarkdown remarkPlugins={[remarkGfm]}>
+              {question!.problem}
+            </ReactMarkdown>
+          </div>
           {isBoardQuestion && (
             <p className="mt-2 text-xs text-gray-400">
               Write a complete answer ({boardMarks} mark{boardMarks !== 1 ? 's' : ''})
