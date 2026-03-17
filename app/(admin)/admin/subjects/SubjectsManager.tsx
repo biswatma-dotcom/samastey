@@ -327,13 +327,6 @@ interface TopicAddFormState {
 interface ImportPreview {
   source: string
   explanationWords: number
-  mcqEasy: number
-  mcqMedium: number
-  mcqHard: number
-  board1: number
-  board2: number
-  board3: number
-  board5: number
   referenceMaterialWords: number
 }
 
@@ -344,7 +337,7 @@ interface ImportPanelState {
   parseError: string | null
   importing: boolean
   importError: string | null
-  importResult: { imported: { explanations: number; mcq: number; board: number; material: number } } | null
+  importResult: { imported: { explanations: number; material: number } } | null
 }
 
 function TopicsPanel({ subjectId, onClose }: { subjectId: string; onClose: () => void }) {
@@ -397,25 +390,12 @@ function TopicsPanel({ subjectId, onClose }: { subjectId: string; onClose: () =>
       const parsed = JSON.parse(panel.json)
       if (!parsed.source || typeof parsed.source !== 'string') throw new Error('Missing "source" field')
       if (!parsed.explanation || typeof parsed.explanation !== 'string') throw new Error('Missing "explanation" field')
-      if (!Array.isArray(parsed.mcq_questions)) throw new Error('"mcq_questions" must be an array')
-      if (!Array.isArray(parsed.board_questions)) throw new Error('"board_questions" must be an array')
       if (!parsed.reference_material || typeof parsed.reference_material !== 'string') throw new Error('Missing "reference_material" field')
 
       const wordCount = (s: string) => s.trim().split(/\s+/).filter(Boolean).length
-
-      const mcqs: any[] = parsed.mcq_questions
-      const boards: any[] = parsed.board_questions
-
       const preview: ImportPreview = {
         source: parsed.source,
         explanationWords: wordCount(parsed.explanation),
-        mcqEasy: mcqs.filter((q) => q.difficulty === 'easy').length,
-        mcqMedium: mcqs.filter((q) => q.difficulty === 'medium').length,
-        mcqHard: mcqs.filter((q) => q.difficulty === 'hard').length,
-        board1: boards.filter((q) => q.marks === 1).length,
-        board2: boards.filter((q) => q.marks === 2).length,
-        board3: boards.filter((q) => q.marks === 3).length,
-        board5: boards.filter((q) => q.marks === 5).length,
         referenceMaterialWords: wordCount(parsed.reference_material),
       }
       setImportPanel(conceptId, { preview, parseError: null, importResult: null, importError: null })
@@ -442,7 +422,7 @@ function TopicsPanel({ subjectId, onClose }: { subjectId: string; onClose: () =>
       }
       setImportPanel(conceptId, { importing: false, importResult: result })
       setVerifiedIds((prev) => new Set(prev).add(conceptId))
-      showToast(`Content imported for this concept — ${result.imported.mcq} MCQs, ${result.imported.board} board questions.`)
+      showToast(`Content imported — explanation cached, reference material saved.`)
       await loadConcepts()
     } catch (err: any) {
       setImportPanel(conceptId, { importing: false, importError: err.message ?? 'Import failed' })
@@ -692,23 +672,13 @@ function TopicsPanel({ subjectId, onClose }: { subjectId: string; onClose: () =>
                         <p className="text-xs font-semibold text-purple-300">Preview</p>
                         <p className="text-xs text-gray-300"><span className="text-gray-500">Source:</span> {panel.preview.source}</p>
                         <p className="text-xs text-gray-300"><span className="text-gray-500">Explanation:</span> {panel.preview.explanationWords} words</p>
-                        <p className="text-xs text-gray-300">
-                          <span className="text-gray-500">MCQs:</span>{' '}
-                          {panel.preview.mcqEasy + panel.preview.mcqMedium + panel.preview.mcqHard} total
-                          {' '}({panel.preview.mcqEasy} easy / {panel.preview.mcqMedium} medium / {panel.preview.mcqHard} hard)
-                        </p>
-                        <p className="text-xs text-gray-300">
-                          <span className="text-gray-500">Board Qs:</span>{' '}
-                          {panel.preview.board1 + panel.preview.board2 + panel.preview.board3 + panel.preview.board5} total
-                          {' '}(1m×{panel.preview.board1} / 2m×{panel.preview.board2} / 3m×{panel.preview.board3} / 5m×{panel.preview.board5})
-                        </p>
                         <p className="text-xs text-gray-300"><span className="text-gray-500">Reference material:</span> {panel.preview.referenceMaterialWords} words</p>
                       </div>
                     )}
 
                     {panel.importResult && (
                       <div className="rounded-lg bg-green-500/15 border border-green-500/30 px-3 py-2 text-xs text-green-400">
-                        Import successful — {panel.importResult.imported.explanations} explanations, {panel.importResult.imported.mcq} MCQs, {panel.importResult.imported.board} board questions, {panel.importResult.imported.material} reference material.
+                        Import successful — {panel.importResult.imported.explanations} explanations cached, {panel.importResult.imported.material} reference material saved.
                       </div>
                     )}
 

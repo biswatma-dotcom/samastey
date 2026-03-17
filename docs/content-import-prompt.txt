@@ -9,76 +9,52 @@ I am going to provide you with a textbook chapter (NCERT or ICSE). Your task is 
 
 STRICT RULES:
 - Return ONLY valid JSON. No markdown code fences, no prose before or after.
-- Every question must be 100% self-contained. Never use phrases like "the above passage", "as described above", "from the chapter", or "the following".
 - Use exact NCERT/ICSE terminology throughout (do not paraphrase official definitions).
-- All content must be in English.
+- All content must be in English unless the chapter is a language subject.
 - Do not include any trailing commas in the JSON.
 
 OUTPUT STRUCTURE:
 {
   "source": "<Board> Class <Grade> <Subject> Chapter <N> — <Chapter Title>",
-  "explanation": "<800–1000 word markdown explanation of the chapter's core concepts>",
-  "mcq_questions": [
-    {
-      "problem": "<question text>",
-      "options": ["A. <option>", "B. <option>", "C. <option>", "D. <option>"],
-      "answer": "<exact text of the correct option, e.g. 'A. Photosynthesis'>",
-      "explanation": "<why this answer is correct, 1–3 sentences>",
-      "difficulty": "easy" | "medium" | "hard"
-    }
-  ],
-  "board_questions": [
-    {
-      "problem": "<question text>",
-      "marks": 1 | 2 | 3 | 5,
-      "answer": "<model answer — complete and detailed>",
-      "marking_scheme": ["<point 1>", "<point 2>", ...]
-    }
-  ],
-  "reference_material": "<400–600 word summary of key definitions, formulas, and facts>"
+  "explanation": "<comprehensive markdown explanation — see requirements below>",
+  "reference_material": "<dense reference text — see requirements below>"
 }
-
-CONTENT REQUIREMENTS:
-
-1. explanation (field: "explanation")
-   - Length: 800–1000 words
-   - Format: Markdown (use ## headings, **bold** for terms, bullet points where appropriate)
-   - Cover: all major concepts in the chapter, with definitions and examples
-   - Include any important formulas or equations inline
-
-2. mcq_questions (field: "mcq_questions")
-   - Generate EXACTLY 12 MCQs total:
-     * 4 easy questions (recall/recognition level)
-     * 4 medium questions (application/understanding level)
-     * 4 hard questions (analysis/evaluation level)
-   - Each question has exactly 4 options labeled A, B, C, D
-   - The "answer" field must be the FULL option string, e.g. "B. 6.023 × 10²³"
-   - The "difficulty" field must be exactly one of: "easy", "medium", "hard"
-   - Questions must cover different concepts from the chapter (no two questions on the same sub-topic)
-
-3. board_questions (field: "board_questions")
-   - Generate EXACTLY 7 board-style questions:
-     * 2 one-mark questions   (marks: 1)  — define/name/state
-     * 2 two-mark questions   (marks: 2)  — short answer
-     * 2 three-mark questions (marks: 3)  — explain with example
-     * 1 five-mark question   (marks: 5)  — detailed answer / diagram question
-   - The "marks" field must be an integer: 1, 2, 3, or 5
-   - The "answer" field is the complete model answer a student should write
-   - The "marking_scheme" is an array of strings, one per marking point
-     * 1-mark question: 1 point
-     * 2-mark question: 2 points
-     * 3-mark question: 3 points
-     * 5-mark question: 5 points
-
-4. reference_material (field: "reference_material")
-   - Length: 400–600 words
-   - Plain prose (no markdown)
-   - Include: all key terms with definitions, important formulas/equations, key facts/dates/values
-   - Written as dense reference text, not a narrative
 
 SOURCE FORMAT EXAMPLES:
   "NCERT Class 9 Science Chapter 8 — Motion"
   "NCERT Class 10 Mathematics Chapter 5 — Arithmetic Progressions"
   "ICSE Class 9 Chemistry Chapter 3 — Water"
+
+CONTENT REQUIREMENTS:
+
+1. explanation (field: "explanation")
+   - Length: 1000–1500 words
+   - Format: Markdown
+     * Use ## for section headings
+     * Use **bold** for all key terms on first use
+     * Use $...$ for inline math, $$...$$ for display equations
+     * Use bullet points and numbered lists where appropriate
+   - Structure (follow this order):
+     1. One-sentence hook — why this concept matters in real life
+     2. Core concepts — cover every major topic in the chapter with definitions
+     3. Worked examples — at least 2 fully solved examples with step-by-step working
+     4. Board exam style — one question in NCERT/ICSE board style, fully solved, labelled "📝 Board Exam Style"
+     5. Key Takeaways — 3–5 bullet points of what to remember
+   - Use the EXACT definitions, examples, and sequence from the textbook
+   - Match the depth of the textbook — do not go beyond the syllabus
+   - Include all important formulas and equations
+   - Do NOT use HTML tags (<br>, <p>, <b> etc.) — use only Markdown
+
+2. reference_material (field: "reference_material")
+   - Length: 600–900 words
+   - Plain prose, no markdown formatting
+   - Include ALL of the following from the chapter:
+     * Every key term with its exact textbook definition
+     * Every formula and equation with variable definitions
+     * All important facts, values, constants, dates
+     * Common misconceptions addressed in the chapter
+     * Differences between commonly confused terms (e.g. speed vs velocity)
+   - Written as dense reference text — this will be used by AI to answer student questions
+   - Be exhaustive — if a student asks any question about this chapter, the answer should be findable here
 
 BEGIN generating the JSON for the attached chapter now. Remember: output ONLY valid JSON.
