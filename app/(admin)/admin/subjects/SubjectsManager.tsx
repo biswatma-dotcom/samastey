@@ -325,6 +325,29 @@ interface TopicAddFormState {
   estimatedMinutes: number
 }
 
+interface ImportPreview {
+  source: string
+  explanationWords: number
+  mcqEasy: number
+  mcqMedium: number
+  mcqHard: number
+  board1: number
+  board2: number
+  board3: number
+  board5: number
+  referenceMaterialWords: number
+}
+
+interface ImportPanelState {
+  json: string
+  replaceExisting: boolean
+  preview: ImportPreview | null
+  parseError: string | null
+  importing: boolean
+  importError: string | null
+  importResult: { imported: { explanations: number; mcq: number; board: number; material: number } } | null
+}
+
 function TopicsPanel({ subjectId, onClose }: { subjectId: string; onClose: () => void }) {
   const [concepts, setConcepts] = useState<ConceptRow[]>([])
   const [loading, setLoading] = useState(true)
@@ -338,9 +361,98 @@ function TopicsPanel({ subjectId, onClose }: { subjectId: string; onClose: () =>
   const [savingAdd, setSavingAdd] = useState(false)
   const [addError, setAddError] = useState<string | null>(null)
 
+  // Import panel state — keyed by conceptId
+  const [importPanelId, setImportPanelId] = useState<string | null>(null)
+  const [importPanels, setImportPanels] = useState<Record<string, ImportPanelState>>({})
+  // Verified badges — conceptIds that were successfully imported in this session
+  const [verifiedIds, setVerifiedIds] = useState<Set<string>>(new Set())
+
+  function getImportPanel(conceptId: string): ImportPanelState {
+    return importPanels[conceptId] ?? {
+      json: '',
+      replaceExisting: false,
+      preview: null,
+      parseError: null,
+      importing: false,
+      importError: null,
+      importResult: null,
+    }
+  }
+
+  function setImportPanel(conceptId: string, patch: Partial<ImportPanelState>) {
+    setImportPanels((prev) => ({
+      ...prev,
+      [conceptId]: { ...getImportPanel(conceptId), ...patch },
+    }))
+  }
+
+  function toggleImportPanel(conceptId: string) {
+    setImportPanelId((prev) => (prev === conceptId ? null : conceptId))
+    // Close edit form if open
+    setEditForm(null)
+  }
+
+  function validateImportJson(conceptId: string) {
+    const panel = getImportPanel(conceptId)
+    try {
+      const parsed = JSON.parse(panel.json)
+      if (!parsed.source || typeof parsed.source !== 'string') throw new Error('Missing "source" field')
+      if (!parsed.explanation || typeof parsed.explanation !== 'string') throw new Error('Missing "explanation" field')
+      if (!Array.isArray(parsed.mcq_questions)) throw new Error('"mcq_questions" must be an array')
+      if (!Array.isArray(parsed.board_questions)) throw new Error('"board_questions" must be an array')
+      if (!parsed.reference_material || typeof parsed.reference_material !== 'string') throw new Error('Missing "reference_material" field')
+
+      const wordCount = (s: string) => s.trim().split(/\s+/).filter(Boolean).length
+
+      const mcqs: any[] = parsed.mcq_questions
+      const boards: any[] = parsed.board_questions
+
+      const preview: ImportPreview = {
+        source: parsed.source,
+        explanationWords: wordCount(parsed.explanation),
+        mcqEasy: mcqs.filter((q) => q.difficulty === 'easy').length,
+        mcqMedium: mcqs.filter((q) => q.difficulty === 'medium').length,
+        mcqHard: mcqs.filter((q) => q.difficulty === 'hard').length,
+        board1: boards.filter((q) => q.marks === 1).length,
+        board2: boards.filter((q) => q.marks === 2).length,
+        board3: boards.filter((q) => q.marks === 3).length,
+        board5: boards.filter((q) => q.marks === 5).length,
+        referenceMaterialWords: wordCount(parsed.reference_material),
+      }
+      setImportPanel(conceptId, { preview, parseError: null, importResult: null, importError: null })
+    } catch (err: any) {
+      setImportPanel(conceptId, { preview: null, parseError: err.message ?? 'Invalid JSON' })
+    }
+  }
+
+  async function runImport(conceptId: string) {
+    const panel = getImportPanel(conceptId)
+    if (!panel.preview) return
+    setImportPanel(conceptId, { importing: true, importError: null, importResult: null })
+    try {
+      const parsed = JSON.parse(panel.json)
+      const res = await fetch('/api/admin/import', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ conceptId, replaceExisting: panel.replaceExisting, data: parsed }),
+      })
+      const result = await res.json()
+      if (!res.ok) {
+        setImportPanel(conceptId, { importing: false, importError: result.error ?? 'Import failed' })
+        return
+      }
+      setImportPanel(conceptId, { importing: false, importResult: result })
+      setVerifiedIds((prev) => new Set(prev).add(conceptId))
+      showToast(`Content imported for this concept — ${result.imported.mcq} MCQs, ${result.imported.board} board questions.`)
+      await loadConcepts()
+    } catch (err: any) {
+      setImportPanel(conceptId, { importing: false, importError: err.message ?? 'Import failed' })
+    }
+  }
+
   function showToast(msg: string) {
     setToast(msg)
-    setTimeout(() => setToast(null), 3000)
+    setTimeout(() => setToast(null), 4000)
   }
 
   const loadConcepts = useCallback(async () => {
@@ -448,11 +560,18 @@ function TopicsPanel({ subjectId, onClose }: { subjectId: string; onClose: () =>
         <div className="space-y-2">
           {concepts.map((concept, i) => {
             const isEditing = editForm?.id === concept.id
+            const isImporting = importPanelId === concept.id
+            const panel = getImportPanel(concept.id)
+            // Verified: either imported this session, or already has both contents and materials
+            const isVerified = verifiedIds.has(concept.id) || (concept._count.contents > 0 && concept._count.materials > 0)
             return (
               <div key={concept.id} className="rounded-lg border border-gray-800 bg-gray-950 p-3">
                 <div className="flex items-center justify-between gap-2 flex-wrap">
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-2 flex-wrap">
                     <span className="text-xs font-medium text-gray-300">{i + 1}. {concept.title}</span>
+                    {isVerified && (
+                      <span className="rounded-full bg-green-500/20 px-2 py-0.5 text-xs font-semibold text-green-400 border border-green-500/30">Verified</span>
+                    )}
                     <span className="text-xs text-gray-600">{concept.estimatedMinutes} min</span>
                     {concept.isActive
                       ? <span className="rounded-full bg-green-500/15 px-2 py-0.5 text-xs text-green-400">Active</span>
@@ -473,6 +592,12 @@ function TopicsPanel({ subjectId, onClose }: { subjectId: string; onClose: () =>
                         Edit
                       </button>
                     )}
+                    <button
+                      onClick={() => toggleImportPanel(concept.id)}
+                      className={`rounded-lg px-2.5 py-1 text-xs font-medium transition-colors ${isImporting ? 'bg-purple-500/25 text-purple-300' : 'bg-purple-500/10 text-purple-400 hover:bg-purple-500/20'}`}
+                    >
+                      Import Content
+                    </button>
                     <button
                       onClick={() => deleteConcept(concept.id)}
                       disabled={deletingId === concept.id}
@@ -525,6 +650,89 @@ function TopicsPanel({ subjectId, onClose }: { subjectId: string; onClose: () =>
                         className="rounded-lg bg-gray-800 px-3 py-1.5 text-xs font-medium text-gray-400 hover:bg-gray-700 transition-colors"
                       >
                         Cancel
+                      </button>
+                    </div>
+                  </div>
+                )}
+
+                {/* Import Content Panel */}
+                {isImporting && (
+                  <div className="mt-3 rounded-lg border border-purple-500/30 bg-gray-900 p-4 space-y-3">
+                    <div className="flex items-center justify-between">
+                      <p className="text-xs font-semibold text-purple-400">Import Structured Content</p>
+                      <button onClick={() => setImportPanelId(null)} className="text-xs text-gray-500 hover:text-gray-300">Close</button>
+                    </div>
+                    <p className="text-xs text-gray-500">Paste the JSON generated by Claude Sonnet from the textbook PDF</p>
+
+                    <label className="flex items-center gap-2 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={panel.replaceExisting}
+                        onChange={(e) => setImportPanel(concept.id, { replaceExisting: e.target.checked })}
+                        className="rounded border-gray-600 bg-gray-800 text-purple-500 focus:ring-purple-500"
+                      />
+                      <span className="text-xs text-gray-400">Replace existing AI-generated content</span>
+                    </label>
+
+                    <textarea
+                      value={panel.json}
+                      onChange={(e) => setImportPanel(concept.id, { json: e.target.value, preview: null, parseError: null, importResult: null })}
+                      rows={12}
+                      placeholder={'{\n  "source": "NCERT Class 9 Science Chapter 8 — Motion",\n  "explanation": "...",\n  "mcq_questions": [...],\n  "board_questions": [...],\n  "reference_material": "..."\n}'}
+                      className="w-full rounded-lg border border-gray-700 bg-gray-950 px-3 py-2 font-mono text-xs text-white focus:border-purple-500 focus:outline-none resize-y"
+                    />
+
+                    {panel.parseError && (
+                      <div className="rounded-lg bg-red-500/15 px-3 py-2 text-xs text-red-400">
+                        Parse error: {panel.parseError}
+                      </div>
+                    )}
+
+                    {panel.preview && (
+                      <div className="rounded-lg border border-purple-500/20 bg-gray-950 p-3 space-y-1.5">
+                        <p className="text-xs font-semibold text-purple-300">Preview</p>
+                        <p className="text-xs text-gray-300"><span className="text-gray-500">Source:</span> {panel.preview.source}</p>
+                        <p className="text-xs text-gray-300"><span className="text-gray-500">Explanation:</span> {panel.preview.explanationWords} words</p>
+                        <p className="text-xs text-gray-300">
+                          <span className="text-gray-500">MCQs:</span>{' '}
+                          {panel.preview.mcqEasy + panel.preview.mcqMedium + panel.preview.mcqHard} total
+                          {' '}({panel.preview.mcqEasy} easy / {panel.preview.mcqMedium} medium / {panel.preview.mcqHard} hard)
+                        </p>
+                        <p className="text-xs text-gray-300">
+                          <span className="text-gray-500">Board Qs:</span>{' '}
+                          {panel.preview.board1 + panel.preview.board2 + panel.preview.board3 + panel.preview.board5} total
+                          {' '}(1m×{panel.preview.board1} / 2m×{panel.preview.board2} / 3m×{panel.preview.board3} / 5m×{panel.preview.board5})
+                        </p>
+                        <p className="text-xs text-gray-300"><span className="text-gray-500">Reference material:</span> {panel.preview.referenceMaterialWords} words</p>
+                      </div>
+                    )}
+
+                    {panel.importResult && (
+                      <div className="rounded-lg bg-green-500/15 border border-green-500/30 px-3 py-2 text-xs text-green-400">
+                        Import successful — {panel.importResult.imported.explanations} explanations, {panel.importResult.imported.mcq} MCQs, {panel.importResult.imported.board} board questions, {panel.importResult.imported.material} reference material.
+                      </div>
+                    )}
+
+                    {panel.importError && (
+                      <div className="rounded-lg bg-red-500/15 px-3 py-2 text-xs text-red-400">
+                        Import error: {panel.importError}
+                      </div>
+                    )}
+
+                    <div className="flex gap-2">
+                      <button
+                        onClick={() => validateImportJson(concept.id)}
+                        disabled={!panel.json.trim()}
+                        className="rounded-lg bg-gray-700 px-3 py-1.5 text-xs font-medium text-gray-200 hover:bg-gray-600 disabled:opacity-40 transition-colors"
+                      >
+                        Validate
+                      </button>
+                      <button
+                        onClick={() => runImport(concept.id)}
+                        disabled={!panel.preview || panel.importing}
+                        className="rounded-lg bg-purple-500 px-3 py-1.5 text-xs font-medium text-white hover:bg-purple-600 disabled:opacity-40 transition-colors"
+                      >
+                        {panel.importing ? 'Importing...' : 'Import'}
                       </button>
                     </div>
                   </div>
