@@ -16,7 +16,6 @@ export default async function DashboardPage() {
   })
 
   if (!student) redirect('/login')
-  if (student.learningStyle === 'UNKNOWN') redirect('/onboarding')
 
   const [weeklyActivity, recentRecords] = await Promise.all([
     getWeeklyActivity(student.id),

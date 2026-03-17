@@ -5,7 +5,6 @@ import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/db/prisma'
 import { getSubjectProgress } from '@/lib/db/queries/progress'
 import { ProgressRing } from '@/components/dashboard/ProgressRing'
-import { LearningStyleBadge } from '@/components/learn/LearningStyleBadge'
 import { ProgressFilterBar } from '@/components/progress/ProgressFilterBar'
 
 export default async function ProgressPage({
@@ -121,15 +120,6 @@ export default async function ProgressPage({
             <p className="text-sm text-gray-500">{stat.label}</p>
           </div>
         ))}
-      </div>
-
-      {/* Learning profile */}
-      <div className="rounded-xl border border-gray-200 bg-white p-5 dark:border-gray-800 dark:bg-gray-900">
-        <h2 className="mb-3 font-semibold text-gray-900 dark:text-white">Learning Profile</h2>
-        <LearningStyleBadge style={student.learningStyle} />
-        <p className="mt-2 text-sm text-gray-500">
-          Samastey adapts all explanations and practice problems for your learning style.
-        </p>
       </div>
 
       {/* Subject breakdown */}

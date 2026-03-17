@@ -4,7 +4,6 @@ import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/db/prisma'
 import { getSubjectProgress, getStuckConcepts, getWeeklyActivity } from '@/lib/db/queries/progress'
 import { ProgressRing } from '@/components/dashboard/ProgressRing'
-import { LearningStyleBadge } from '@/components/learn/LearningStyleBadge'
 import { Navbar } from '@/components/shared/Navbar'
 
 export default async function ParentDashboardPage() {
@@ -56,7 +55,6 @@ export default async function ParentDashboardPage() {
                   <p className="text-sm text-gray-500">Class {student.grade} {student.board} · {student.streakDays} day streak · {student.xpTotal.toLocaleString()} XP</p>
                 </div>
                 <div className="flex items-center gap-3">
-                  <LearningStyleBadge style={student.learningStyle} />
                   <ProgressRing percent={overallPercent} size={64} label="overall" />
                 </div>
               </div>

@@ -1,4 +1,4 @@
-import { LearningStyle, Pace, Language } from '@/types'
+import { Pace, Language } from '@/types'
 import { EXPLAIN_CONCEPT, EXPLAIN_DIFFERENTLY, GENERATE_HINT, ANSWER_STUDENT_QUESTION } from './prompts'
 import { sarvamChat, sarvamStream } from './client'
 import { getTokenLimit } from '@/lib/db/appSettings'
@@ -17,7 +17,6 @@ export async function streamExplanation(params: {
   conceptId: string
   conceptTitle: string
   conceptDescription: string
-  learningStyle: LearningStyle
   pace: Pace
   priorMistakes: string[]
   grade: number
@@ -34,7 +33,6 @@ export async function streamExplanation(params: {
 export async function streamAlternateExplanation(params: {
   conceptId: string
   conceptTitle: string
-  learningStyle: LearningStyle
   previousApproach: string
   grade: number
   board: string
@@ -50,7 +48,6 @@ export async function streamAnswer(params: {
   conceptId: string
   conceptTitle: string
   studentQuestion: string
-  learningStyle: LearningStyle
   grade: number
   board: string
   language?: Language

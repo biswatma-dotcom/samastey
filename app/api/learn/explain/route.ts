@@ -6,7 +6,7 @@ import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/db/prisma'
 import { streamExplanation, streamAlternateExplanation, streamAnswer } from '@/lib/ai/explainer'
 import { getConceptById } from '@/lib/db/queries/concepts'
-import { LearningStyle, Pace, Language } from '@/types'
+import { Pace, Language } from '@/types'
 
 export async function POST(req: NextRequest) {
   try {
@@ -41,7 +41,6 @@ export async function POST(req: NextRequest) {
       conceptId,
       conceptTitle: concept.title,
       studentQuestion,
-      learningStyle: student.learningStyle as LearningStyle,
       grade: student.grade,
       board: student.board,
       language,
@@ -56,7 +55,6 @@ export async function POST(req: NextRequest) {
     const stream = await streamAlternateExplanation({
       conceptId,
       conceptTitle: concept.title,
-      learningStyle: student.learningStyle as LearningStyle,
       previousApproach,
       grade: student.grade,
       board: student.board,
@@ -69,7 +67,7 @@ export async function POST(req: NextRequest) {
 
   // Initial explanation — check cache first
   const cached = await prisma.conceptContent.findFirst({
-    where: { conceptId, learningStyle: student.learningStyle, language },
+    where: { conceptId, learningStyle: 'UNKNOWN', language },
   })
 
   if (cached) {
@@ -112,7 +110,6 @@ export async function POST(req: NextRequest) {
     conceptId,
     conceptTitle: concept.title,
     conceptDescription: concept.description,
-    learningStyle: student.learningStyle as LearningStyle,
     pace: student.learningPace as Pace,
     priorMistakes: [],
     grade: student.grade,
@@ -123,7 +120,6 @@ export async function POST(req: NextRequest) {
 
   const decoder = new TextDecoder()
   let accumulated = ''
-  const learningStyle = student.learningStyle
 
   const transform = new TransformStream<Uint8Array, Uint8Array>({
     transform(chunk, controller) {
@@ -136,7 +132,7 @@ export async function POST(req: NextRequest) {
       if (accumulated.length < 500 || hasUnclosedThink) return
       try {
         await prisma.conceptContent.create({
-          data: { conceptId, learningStyle, language, content: accumulated },
+          data: { conceptId, learningStyle: 'UNKNOWN', language, content: accumulated },
         })
       } catch {
         // Ignore — likely a race condition duplicate

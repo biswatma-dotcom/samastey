@@ -38,24 +38,17 @@ export async function POST(req: NextRequest) {
 
   if (replaceExisting) {
     await prisma.conceptContent.deleteMany({
-      where: { conceptId, learningStyle: { in: ['UNKNOWN', 'READING_WRITING'] } },
+      where: { conceptId, learningStyle: 'UNKNOWN' },
     })
     await prisma.conceptMaterial.deleteMany({ where: { conceptId } })
   }
 
-  // Upsert explanation for UNKNOWN and READING_WRITING styles
-  await Promise.all([
-    prisma.conceptContent.upsert({
-      where: { conceptId_learningStyle_language: { conceptId, learningStyle: 'UNKNOWN', language: 'en' } },
-      create: { conceptId, learningStyle: 'UNKNOWN', language: 'en', content: data.explanation },
-      update: { content: data.explanation },
-    }),
-    prisma.conceptContent.upsert({
-      where: { conceptId_learningStyle_language: { conceptId, learningStyle: 'READING_WRITING', language: 'en' } },
-      create: { conceptId, learningStyle: 'READING_WRITING', language: 'en', content: data.explanation },
-      update: { content: data.explanation },
-    }),
-  ])
+  // Upsert explanation for UNKNOWN style
+  await prisma.conceptContent.upsert({
+    where: { conceptId_learningStyle_language: { conceptId, learningStyle: 'UNKNOWN', language: 'en' } },
+    create: { conceptId, learningStyle: 'UNKNOWN', language: 'en', content: data.explanation },
+    update: { content: data.explanation },
+  })
 
   // Upsert reference material
   const existing = await prisma.conceptMaterial.findFirst({ where: { conceptId } })
@@ -70,5 +63,5 @@ export async function POST(req: NextRequest) {
     })
   }
 
-  return NextResponse.json({ imported: { explanations: 2, material: 1 } })
+  return NextResponse.json({ imported: { explanations: 1, material: 1 } })
 }

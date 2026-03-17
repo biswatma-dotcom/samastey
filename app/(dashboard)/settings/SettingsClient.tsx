@@ -9,13 +9,6 @@ import { LANGUAGE_NAMES, Language } from '@/types'
 
 const LANGUAGES = Object.entries(LANGUAGE_NAMES).map(([value, label]) => ({ value: value as Language, label }))
 
-const LEARNING_STYLES = [
-  { value: 'VISUAL', label: 'Visual', icon: '👁️', desc: 'Diagrams, tables, spatial examples' },
-  { value: 'AUDITORY', label: 'Auditory', icon: '🎵', desc: 'Verbal walkthroughs, mnemonics' },
-  { value: 'KINESTHETIC', label: 'Hands-On', icon: '✋', desc: 'Step-by-step, real-world problems' },
-  { value: 'READING_WRITING', label: 'Reader/Writer', icon: '📖', desc: 'Structured notes, definitions' },
-]
-
 const PACES = [
   { value: 'SLOW', label: 'Slow', icon: '🐢', desc: 'Small steps, detailed explanations' },
   { value: 'MEDIUM', label: 'Medium', icon: '🚶', desc: 'Balanced depth and pace' },
@@ -36,7 +29,6 @@ interface Props {
     email: string
     grade: number
     board: string
-    learningStyle: string
     learningPace: string
     language: string
     xpTotal: number
@@ -46,7 +38,6 @@ interface Props {
 
 export function SettingsClient({ student }: Props) {
   const router = useRouter()
-  const [learningStyle, setLearningStyle] = useState(student.learningStyle)
   const [learningPace, setLearningPace] = useState(student.learningPace)
   const [grade, setGrade] = useState(student.grade)
   const [board, setBoard] = useState(student.board)
@@ -54,7 +45,6 @@ export function SettingsClient({ student }: Props) {
   // Track last-saved values so hasChanges stays accurate after router.refresh()
   const [savedGrade, setSavedGrade] = useState(student.grade)
   const [savedBoard, setSavedBoard] = useState(student.board)
-  const [savedStyle, setSavedStyle] = useState(student.learningStyle)
   const [savedPace, setSavedPace] = useState(student.learningPace)
   const [savedLanguage, setSavedLanguage] = useState(student.language)
   const [saving, setSaving] = useState(false)
@@ -104,7 +94,7 @@ export function SettingsClient({ student }: Props) {
     const res = await fetch('/api/settings', {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ learningStyle, learningPace, grade, board, language }),
+      body: JSON.stringify({ learningPace, grade, board, language }),
     })
 
     setSaving(false)
@@ -118,7 +108,6 @@ export function SettingsClient({ student }: Props) {
     // Update committed baseline so hasChanges resets correctly
     setSavedGrade(grade)
     setSavedBoard(board)
-    setSavedStyle(learningStyle)
     setSavedPace(learningPace)
     setSavedLanguage(language)
     setSaved(true)
@@ -127,7 +116,6 @@ export function SettingsClient({ student }: Props) {
   }
 
   const hasChanges =
-    learningStyle !== savedStyle ||
     learningPace !== savedPace ||
     grade !== savedGrade ||
     board !== savedBoard ||
@@ -291,42 +279,6 @@ export function SettingsClient({ student }: Props) {
         </CardContent>
       </Card>
 
-      {/* Learning style */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-base">Learning Style</CardTitle>
-          <CardDescription>How Samastey explains concepts to you</CardDescription>
-        </CardHeader>
-        <CardContent className="grid gap-3 sm:grid-cols-2">
-          {LEARNING_STYLES.map((style) => (
-            <button
-              key={style.value}
-              onClick={() => setLearningStyle(style.value)}
-              className={cn(
-                'flex items-start gap-3 rounded-lg border p-3 text-left transition-all',
-                learningStyle === style.value
-                  ? 'border-orange-500 bg-orange-50 dark:bg-orange-950'
-                  : 'border-gray-200 bg-white hover:border-orange-300 dark:border-gray-700 dark:bg-gray-900'
-              )}
-            >
-              <span className="text-xl">{style.icon}</span>
-              <div>
-                <p className={cn(
-                  'text-sm font-medium',
-                  learningStyle === style.value ? 'text-orange-700 dark:text-orange-300' : 'text-gray-900 dark:text-gray-100'
-                )}>
-                  {style.label}
-                </p>
-                <p className="text-xs text-gray-500 mt-0.5">{style.desc}</p>
-              </div>
-              {learningStyle === style.value && (
-                <span className="ml-auto text-orange-500 text-sm">✓</span>
-              )}
-            </button>
-          ))}
-        </CardContent>
-      </Card>
-
       {/* Learning pace */}
       <Card>
         <CardHeader>
@@ -367,7 +319,6 @@ export function SettingsClient({ student }: Props) {
           <Button
             variant="ghost"
             onClick={() => {
-              setLearningStyle(savedStyle)
               setLearningPace(savedPace)
               setGrade(savedGrade)
               setBoard(savedBoard)

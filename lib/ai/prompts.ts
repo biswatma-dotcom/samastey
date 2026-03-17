@@ -1,4 +1,4 @@
-import { LearningStyle, Pace, Language, LANGUAGE_NAMES } from '@/types'
+import { Pace, Language, LANGUAGE_NAMES } from '@/types'
 
 function langPrefix(language?: Language): string {
   if (!language || language === 'en') return ''
@@ -9,7 +9,6 @@ function langPrefix(language?: Language): string {
 export const EXPLAIN_CONCEPT = (params: {
   conceptTitle: string
   conceptDescription: string
-  learningStyle: LearningStyle
   pace: Pace
   priorMistakes: string[]
   grade: number
@@ -34,7 +33,6 @@ ${params.referenceMaterial}
 You MUST base the explanation on the above reference. Do not contradict it. You may supplement with examples but the core content must match.
 ` : ''}
 STUDENT PROFILE:
-- Learning style: ${params.learningStyle}
 - Pace preference: ${params.pace}
 - Recent mistakes to address: ${params.priorMistakes.join(', ') || 'none yet'}
 
@@ -44,11 +42,7 @@ SUMMARY: ${params.conceptDescription}
 LEARNING OBJECTIVES — you MUST cover every one of these:
 ${params.objectives.map((o, i) => `${i + 1}. ${o}`).join('\n')}
 
-ADAPTATION RULES:
-${params.learningStyle === 'VISUAL' ? '- Use ASCII tables, structured layouts, number lines, or visual comparisons' : ''}
-${params.learningStyle === 'AUDITORY' ? '- Use verbal walkthroughs, "say this out loud" prompts, rhythm-based mnemonics' : ''}
-${params.learningStyle === 'KINESTHETIC' ? '- Use hands-on step-by-step examples, real-world scenarios, "try this yourself" prompts' : ''}
-${params.learningStyle === 'READING_WRITING' ? '- Use structured notes with headings, bold key terms, definition boxes, bullet summaries' : ''}
+PACE:
 ${params.pace === 'SLOW' ? '- Break into very small steps. Pause to check understanding at each step.' : ''}
 ${params.pace === 'FAST' ? '- Be concise. Skip obvious steps. Focus on the non-trivial aspects.' : ''}
 
@@ -90,7 +84,6 @@ NEVER say "Great question!" or use filler praise. NEVER use the word "straightfo
 
 export const EXPLAIN_DIFFERENTLY = (params: {
   conceptTitle: string
-  learningStyle: LearningStyle
   previousApproach: string
   grade: number
   board: string
@@ -107,10 +100,6 @@ ${params.referenceMaterial}
 You MUST base the explanation on the above reference. Do not contradict it. You may supplement with examples but the core content must match.
 ` : ''}
 Now explain the SAME concept using a completely different analogy, approach, or framing — while staying strictly within the ${params.board === 'CBSE' ? 'NCERT' : 'ICSE'} Class ${params.grade} syllabus. Use the same terminology and definitions as the textbook.
-${params.learningStyle === 'VISUAL' ? 'Try a visual/spatial approach this time.' : ''}
-${params.learningStyle === 'AUDITORY' ? 'Try a verbal/rhythmic approach this time.' : ''}
-${params.learningStyle === 'KINESTHETIC' ? 'Try a hands-on, do-it-yourself approach this time.' : ''}
-${params.learningStyle === 'READING_WRITING' ? 'Try a structured outline/notes approach this time.' : ''}
 
 Be concise. Lead with the new analogy. Use markdown. NEVER use HTML tags like <br>, <p>, <b>, <div>. Use only Markdown.
 MATH FORMATTING: wrap ALL math in $...$ for inline or $$...$$ for block equations. Never write raw LaTeX without dollar signs.
@@ -122,7 +111,6 @@ NEVER use the word "straightforward". NEVER say "Great question!".
 export const ANSWER_STUDENT_QUESTION = (params: {
   conceptTitle: string
   studentQuestion: string
-  learningStyle: LearningStyle
   grade: number
   board: string
   language?: Language
@@ -138,10 +126,6 @@ You MUST base the explanation on the above reference. Do not contradict it. You 
 The student asks: "${params.studentQuestion}"
 
 Answer their question directly and completely. Stay focused on exactly what they asked. Use the exact terminology, definitions, and examples from the ${params.board === 'CBSE' ? 'NCERT' : 'ICSE'} Class ${params.grade} textbook — do not introduce concepts beyond the syllabus.
-${params.learningStyle === 'VISUAL' ? 'Use tables or structured layouts where helpful.' : ''}
-${params.learningStyle === 'KINESTHETIC' ? 'Use a concrete real-world example in your answer.' : ''}
-${params.learningStyle === 'READING_WRITING' ? 'Use a structured format with clear headings if needed.' : ''}
-${params.learningStyle === 'AUDITORY' ? 'Walk through the answer step by step as if explaining out loud.' : ''}
 
 If they asked for a question or problem: give a proper ${params.board} board exam-style question with a complete worked solution.
 If they asked for an example: give a clear concrete example with full explanation.

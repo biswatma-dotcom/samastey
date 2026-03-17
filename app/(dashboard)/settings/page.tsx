@@ -22,7 +22,6 @@ export default async function SettingsPage() {
         email: student.user.email,
         grade: student.grade,
         board: student.board,
-        learningStyle: student.learningStyle,
         learningPace: student.learningPace,
         language: student.language || 'en',
         xpTotal: student.xpTotal,
