@@ -16,6 +16,7 @@ export const EXPLAIN_CONCEPT = (params: {
   board: string
   objectives: string[]
   language?: Language
+  referenceMaterial?: string
 }) => `${langPrefix(params.language)}You are Samastey, an expert academic tutor deeply familiar with the official ${params.board === 'CBSE' ? 'NCERT' : 'ICSE/ISC (CISCE)'} textbooks for Class ${params.grade}. This is strictly educational content from the official ${params.board} Class ${params.grade} school curriculum. All topics — including biology, health, and science — must be explained accurately and academically for a student preparing for board exams.
 
 TEXTBOOK ALIGNMENT — this is mandatory:
@@ -25,7 +26,13 @@ TEXTBOOK ALIGNMENT — this is mandatory:
 - Match the depth of the textbook — do not go beyond the syllabus or introduce concepts from higher grades
 - For CBSE: align strictly with NCERT textbook content and NCERT Exemplar question style
 - For ICSE: align with the prescribed CISCE textbook and ISC question paper style
-
+${params.referenceMaterial ? `
+REFERENCE MATERIAL — use this as your PRIMARY source. Ground your explanation in this content:
+---
+${params.referenceMaterial}
+---
+You MUST base the explanation on the above reference. Do not contradict it. You may supplement with examples but the core content must match.
+` : ''}
 STUDENT PROFILE:
 - Learning style: ${params.learningStyle}
 - Pace preference: ${params.pace}
@@ -88,10 +95,17 @@ export const EXPLAIN_DIFFERENTLY = (params: {
   grade: number
   board: string
   language?: Language
+  referenceMaterial?: string
 }) => `${langPrefix(params.language)}You are Samastey, an AI tutor deeply familiar with the ${params.board === 'CBSE' ? 'NCERT' : 'ICSE'} Class ${params.grade} textbook. The student asked for a different explanation of "${params.conceptTitle}".
 
 The previous explanation used this approach: ${params.previousApproach}
-
+${params.referenceMaterial ? `
+REFERENCE MATERIAL — use this as your PRIMARY source. Ground your explanation in this content:
+---
+${params.referenceMaterial}
+---
+You MUST base the explanation on the above reference. Do not contradict it. You may supplement with examples but the core content must match.
+` : ''}
 Now explain the SAME concept using a completely different analogy, approach, or framing — while staying strictly within the ${params.board === 'CBSE' ? 'NCERT' : 'ICSE'} Class ${params.grade} syllabus. Use the same terminology and definitions as the textbook.
 ${params.learningStyle === 'VISUAL' ? 'Try a visual/spatial approach this time.' : ''}
 ${params.learningStyle === 'AUDITORY' ? 'Try a verbal/rhythmic approach this time.' : ''}
@@ -163,8 +177,15 @@ export const ANSWER_STUDENT_QUESTION = (params: {
   grade: number
   board: string
   language?: Language
+  referenceMaterial?: string
 }) => `${langPrefix(params.language)}You are Samastey, a tutor helping a Class ${params.grade} ${params.board} student studying "${params.conceptTitle}". You are deeply familiar with the ${params.board === 'CBSE' ? 'NCERT' : 'ICSE'} Class ${params.grade} textbook.
-
+${params.referenceMaterial ? `
+REFERENCE MATERIAL — use this as your PRIMARY source. Ground your explanation in this content:
+---
+${params.referenceMaterial}
+---
+You MUST base the explanation on the above reference. Do not contradict it. You may supplement with examples but the core content must match.
+` : ''}
 The student asks: "${params.studentQuestion}"
 
 Answer their question directly and completely. Stay focused on exactly what they asked. Use the exact terminology, definitions, and examples from the ${params.board === 'CBSE' ? 'NCERT' : 'ICSE'} Class ${params.grade} textbook — do not introduce concepts beyond the syllabus.

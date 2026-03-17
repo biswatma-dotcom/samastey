@@ -79,6 +79,7 @@ model Subject {
   code     String    @unique
   grade    Int
   board    Board
+  isActive Boolean   @default(true)
   concepts Concept[]
 }
 
@@ -96,7 +97,19 @@ model Concept {
   records          LearningRecord[]
   questions        Question[]
   contents         ConceptContent[]
+  materials        ConceptMaterial[]
   estimatedMinutes Int                 @default(30)
+}
+
+model ConceptMaterial {
+  id        String   @id @default(cuid())
+  conceptId String
+  concept   Concept  @relation(fields: [conceptId], references: [id], onDelete: Cascade)
+  title     String   @default("Reference Material")
+  content   String   @db.Text
+  source    String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }
 
 model ConceptContent {

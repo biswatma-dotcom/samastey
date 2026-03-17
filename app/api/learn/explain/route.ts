@@ -38,6 +38,7 @@ export async function POST(req: NextRequest) {
   // Student asked a specific question
   if (studentQuestion) {
     const stream = await streamAnswer({
+      conceptId,
       conceptTitle: concept.title,
       studentQuestion,
       learningStyle: student.learningStyle as LearningStyle,
@@ -53,6 +54,7 @@ export async function POST(req: NextRequest) {
   // "Explain differently" — always generate fresh, no cache
   if (previousApproach) {
     const stream = await streamAlternateExplanation({
+      conceptId,
       conceptTitle: concept.title,
       learningStyle: student.learningStyle as LearningStyle,
       previousApproach,
@@ -107,6 +109,7 @@ export async function POST(req: NextRequest) {
 
   // Cache miss — generate and save while streaming
   const baseStream = await streamExplanation({
+    conceptId,
     conceptTitle: concept.title,
     conceptDescription: concept.description,
     learningStyle: student.learningStyle as LearningStyle,

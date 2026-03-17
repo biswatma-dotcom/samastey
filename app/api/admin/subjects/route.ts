@@ -25,7 +25,7 @@ export async function GET(req: NextRequest) {
     orderBy: [{ board: 'asc' }, { grade: 'asc' }, { name: 'asc' }],
   })
 
-  // Get content + question counts per subject via concept IDs
+  // Get content + question + material counts per subject via concept IDs
   const subjectIds = subjects.map((s) => s.id)
   const concepts = await prisma.concept.findMany({
     where: { subjectId: { in: subjectIds } },
@@ -39,7 +39,7 @@ export async function GET(req: NextRequest) {
   }
 
   const allConceptIds = concepts.map((c) => c.id)
-  const [contentCounts, questionCounts] = await Promise.all([
+  const [contentCounts, questionCounts, materialCounts] = await Promise.all([
     prisma.conceptContent.groupBy({
       by: ['conceptId'],
       where: { conceptId: { in: allConceptIds } },
@@ -50,28 +50,52 @@ export async function GET(req: NextRequest) {
       where: { conceptId: { in: allConceptIds } },
       _count: { conceptId: true },
     }),
+    prisma.conceptMaterial.groupBy({
+      by: ['conceptId'],
+      where: { conceptId: { in: allConceptIds } },
+      _count: { conceptId: true },
+    }),
   ])
 
   const contentByConceptId = Object.fromEntries(contentCounts.map((r) => [r.conceptId, r._count.conceptId]))
   const questionsByConceptId = Object.fromEntries(questionCounts.map((r) => [r.conceptId, r._count.conceptId]))
+  const materialsByConceptId = Object.fromEntries(materialCounts.map((r) => [r.conceptId, r._count.conceptId]))
 
   const data = subjects.map((s) => {
     const cids = conceptsBySubject[s.id] ?? []
     const totalContent = cids.reduce((sum, id) => sum + (contentByConceptId[id] ?? 0), 0)
     const totalQuestions = cids.reduce((sum, id) => sum + (questionsByConceptId[id] ?? 0), 0)
+    const totalMaterials = cids.reduce((sum, id) => sum + (materialsByConceptId[id] ?? 0), 0)
     return {
       id: s.id,
       name: s.name,
       code: s.code,
       grade: s.grade,
       board: s.board,
+      isActive: s.isActive,
       conceptCount: s._count.concepts,
       contentCount: totalContent,
       questionCount: totalQuestions,
+      materialCount: totalMaterials,
     }
   })
 
   return NextResponse.json(data)
+}
+
+export async function PATCH(req: NextRequest) {
+  const session = await getServerSession(authOptions)
+  if ((session?.user as any)?.role !== 'ADMIN') {
+    return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+  }
+
+  const { subjectId, isActive } = await req.json()
+  if (!subjectId || typeof isActive !== 'boolean') {
+    return NextResponse.json({ error: 'subjectId and isActive required' }, { status: 400 })
+  }
+
+  await prisma.subject.update({ where: { id: subjectId }, data: { isActive } })
+  return NextResponse.json({ ok: true })
 }
 
 export async function DELETE(req: NextRequest) {

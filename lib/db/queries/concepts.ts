@@ -7,6 +7,7 @@ export async function getConceptById(id: string) {
       subject: true,
       objectives: { orderBy: { orderIndex: 'asc' } },
       prerequisites: { select: { id: true, title: true } },
+      materials: { orderBy: { createdAt: 'asc' } },
     },
   })
 }
@@ -24,7 +25,7 @@ export async function getConceptsBySubject(subjectId: string) {
 
 export async function getSubjectsByGradeAndBoard(grade: number, board: string) {
   return prisma.subject.findMany({
-    where: { grade, board: board as any },
+    where: { grade, board: board as any, isActive: true },
     include: {
       concepts: {
         orderBy: { orderIndex: 'asc' },

@@ -1,3 +1,5 @@
+import { getSetting } from '@/lib/db/appSettings'
+
 export function extractJSON(text: string): string {
   // Strip markdown code blocks
   let cleaned = text.replace(/```json\s*/gi, '').replace(/```\s*/g, '').trim()
@@ -72,6 +74,8 @@ export async function sarvamChat(params: ChatParams): Promise<string> {
   const controller = new AbortController()
   const timeout = setTimeout(() => controller.abort(), 55000)
 
+  const model = await getSetting('model')
+
   try {
     const res = await fetch(`${SARVAM_BASE_URL}/v1/chat/completions`, {
       method: 'POST',
@@ -80,7 +84,7 @@ export async function sarvamChat(params: ChatParams): Promise<string> {
         Authorization: `Bearer ${getApiKey()}`,
       },
       body: JSON.stringify({
-        model: SARVAM_MODEL,
+        model: model || SARVAM_MODEL,
         messages: [
           { role: 'system', content: 'Be direct and concise. Return only what is asked.' },
           ...params.messages,
@@ -120,6 +124,8 @@ export function sarvamStream(params: ChatParams): ReadableStream<Uint8Array> {
       const abortCtrl = new AbortController()
       const timeout = setTimeout(() => abortCtrl.abort(), 55000)
 
+      const model = await getSetting('model')
+
       try {
         const res = await fetch(`${SARVAM_BASE_URL}/v1/chat/completions`, {
           method: 'POST',
@@ -128,7 +134,7 @@ export function sarvamStream(params: ChatParams): ReadableStream<Uint8Array> {
             Authorization: `Bearer ${getApiKey()}`,
           },
           body: JSON.stringify({
-            model: SARVAM_MODEL,
+            model: model || SARVAM_MODEL,
             messages: params.messages,
             max_tokens: params.max_tokens ?? 6000,
             temperature: params.temperature ?? 0.7,

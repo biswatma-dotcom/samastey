@@ -10,6 +10,7 @@ export async function GET() {
 
   return NextResponse.json({
     anthropicKeySet: !!process.env.ANTHROPIC_API_KEY,
+    sarvamKeySet: !!process.env.SARVAM_API_KEY,
     googleOAuthSet: !!process.env.GOOGLE_CLIENT_ID && !!process.env.GOOGLE_CLIENT_SECRET,
     databaseConnected: true, // if we got here, DB is connected
     aiModel: 'claude-sonnet-4-6',
