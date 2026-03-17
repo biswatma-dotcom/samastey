@@ -336,7 +336,7 @@ export function PracticeZone({ conceptId, conceptTitle, onScoreUpdate }: Practic
                 </div>
 
                 {/* Examiner feedback */}
-                <p className="text-sm text-gray-700 dark:text-gray-300">{result.feedback}</p>
+                <p className="text-sm text-gray-700 dark:text-gray-300">{String(result.feedback ?? '')}</p>
 
                 {/* Marking breakdown */}
                 {result.markingBreakdown && (
@@ -345,7 +345,7 @@ export function PracticeZone({ conceptId, conceptTitle, onScoreUpdate }: Practic
                       Marking breakdown
                     </summary>
                     <p className="mt-2 text-xs text-gray-600 dark:text-gray-400 whitespace-pre-line">
-                      {result.markingBreakdown}
+                      {String(result.markingBreakdown)}
                     </p>
                   </details>
                 )}
@@ -364,12 +364,12 @@ export function PracticeZone({ conceptId, conceptTitle, onScoreUpdate }: Practic
                     {question!.isDiagramQuestion ? 'What to include in your diagram' : 'Model answer'}
                   </summary>
                   <p className="mt-2 text-xs text-gray-600 dark:text-gray-400 whitespace-pre-line">
-                    {question!.answer}
+                    {String(question!.answer ?? '')}
                   </p>
-                  {question!.markingScheme && question!.markingScheme.length > 0 && (
+                  {Array.isArray(question!.markingScheme) && question!.markingScheme.length > 0 && (
                     <ul className="mt-2 space-y-1">
                       {question!.markingScheme.map((point, i) => (
-                        <li key={i} className="text-xs text-gray-500">• {point}</li>
+                        <li key={i} className="text-xs text-gray-500">• {String(typeof point === 'object' ? JSON.stringify(point) : point)}</li>
                       ))}
                     </ul>
                   )}

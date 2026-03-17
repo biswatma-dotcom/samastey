@@ -95,7 +95,9 @@ export async function generateBoardQuestion(params: {
     answer: parsed.modelAnswer as string,
     explanation: Array.isArray(parsed.markingScheme) ? parsed.markingScheme.join('\n') : '',
     marks,
-    markingScheme: (parsed.markingScheme ?? []) as string[],
+    markingScheme: (Array.isArray(parsed.markingScheme) ? parsed.markingScheme : []).map((p: any) =>
+      String(typeof p === 'object' ? p.point ?? p.text ?? JSON.stringify(p) : p)
+    ),
     isDiagramQuestion: !!(parsed.isDiagramQuestion),
     modelDiagram: parsed.modelDiagram as { format: 'svg' | 'chart' | 'mermaid'; code: string } | null ?? null,
   }
@@ -114,13 +116,19 @@ export async function evaluateBoardAnswer(params: {
   const prompt = EVALUATE_BOARD_ANSWER(params)
   const raw = await sarvamChat({ messages: [{ role: 'user', content: prompt }], max_tokens: 2000 })
   const parsed = JSON.parse(extractJSON(raw))
+  const marksAwarded = Number(parsed.marksAwarded ?? 0)
+  const marksTotal = Number(parsed.marksTotal ?? params.marks) || params.marks
   return {
-    marksAwarded: Number(parsed.marksAwarded ?? 0),
-    marksTotal: Number(parsed.marksTotal ?? params.marks),
-    isCorrect: parsed.marksAwarded >= parsed.marksTotal,
-    feedback: parsed.feedback as string,
-    markingBreakdown: parsed.markingBreakdown as string,
+    marksAwarded,
+    marksTotal,
+    isCorrect: marksAwarded >= marksTotal,
+    feedback: String(parsed.feedback ?? ''),
+    markingBreakdown: typeof parsed.markingBreakdown === 'string'
+      ? parsed.markingBreakdown
+      : Array.isArray(parsed.markingBreakdown)
+        ? parsed.markingBreakdown.map((p: any) => String(typeof p === 'object' ? p.point ?? JSON.stringify(p) : p)).join('\n')
+        : String(parsed.markingBreakdown ?? ''),
     mistakeType: parsed.mistakeType ?? null,
-    partialCredit: Math.round((parsed.marksAwarded / parsed.marksTotal) * 100),
+    partialCredit: Math.round((marksAwarded / marksTotal) * 100),
   }
 }
