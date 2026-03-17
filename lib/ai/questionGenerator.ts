@@ -5,7 +5,8 @@ import { GENERATE_BOARD_QUESTION, EVALUATE_BOARD_ANSWER } from './prompts'
 export type Difficulty = 'easy' | 'medium' | 'hard'
 
 // Detects questions that reference content they forgot to include
-const INCOMPLETE_PATTERNS = [
+// End-of-string patterns: phrase is dangling at the end (clearly forgot the content)
+const INCOMPLETE_PATTERNS_END = [
   /correct the following sentence\s*[.:]?\s*$/i,
   /read the following (sentence|passage|paragraph|extract)\s*[.:]?\s*$/i,
   /refer(ring)? to the (following|above|given)\s*[.:]?\s*$/i,
@@ -14,9 +15,20 @@ const INCOMPLETE_PATTERNS = [
   /given (below|above)\s*[.:]?\s*$/i,
 ]
 
+// Anywhere-in-string patterns: references external content that was never provided
+const INCOMPLETE_PATTERNS_ANY = [
+  /based on the (timeline|passage|figure|table|graph|diagram|chart|map|extract|data|information) (provided|given|above|below)/i,
+  /the (timeline|passage|figure|table|graph|diagram|chart|map|extract) (provided|given|above|below|shown)/i,
+  /refer(ring)? to the (timeline|passage|figure|table|graph|diagram|chart|map) (provided|given|above|below)/i,
+  /as shown in the (figure|diagram|table|graph|chart)/i,
+  /the (above|given|following) (figure|diagram|table|graph|chart|passage|extract|timeline)/i,
+]
+
 function isIncomplete(problem: string): boolean {
   const trimmed = problem.trim()
-  return INCOMPLETE_PATTERNS.some((re) => re.test(trimmed))
+  if (INCOMPLETE_PATTERNS_END.some((re) => re.test(trimmed))) return true
+  if (INCOMPLETE_PATTERNS_ANY.some((re) => re.test(trimmed))) return true
+  return false
 }
 
 export function pickDifficulty(correctStreak: number, lastWasCorrect: boolean | null): Difficulty {
@@ -65,7 +77,7 @@ ${styleHint}${avoidSection}
 
 The question should genuinely test understanding, not just recall. For 'hard', test application or multi-step reasoning. For 'easy', test core definition or direct formula use.
 
-CRITICAL: The "problem" field must be 100% self-contained. If the question refers to a sentence, passage, equation, table, or data — include it IN FULL inside the problem text. Never write "the following sentence" or "the above passage" without actually including that sentence/passage in the problem field itself.
+CRITICAL: The "problem" field must be 100% self-contained. NEVER reference external content with phrases like "the timeline provided", "the passage above", "as shown in the figure", "the following sentence", "the given table", or ANY similar phrase — unless the actual content (the timeline, passage, figure, table, etc.) is fully written out INSIDE the problem text itself. If you cannot include the content inline, write a different question entirely.
 
 Return ONLY valid JSON (no markdown, no extra text, no HTML tags like <br> or <p>):
 {
