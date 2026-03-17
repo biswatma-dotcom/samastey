@@ -83,6 +83,36 @@ export async function GET(req: NextRequest) {
   return NextResponse.json(data)
 }
 
+export async function POST(req: NextRequest) {
+  const session = await getServerSession(authOptions)
+  if ((session?.user as any)?.role !== 'ADMIN') {
+    return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+  }
+
+  const { name, code, grade, board } = await req.json()
+  if (!name || !code || !grade || !board) {
+    return NextResponse.json({ error: 'name, code, grade, and board are required' }, { status: 400 })
+  }
+
+  try {
+    const subject = await prisma.subject.create({
+      data: {
+        name,
+        code,
+        grade: parseInt(grade),
+        board: board as any,
+        isActive: true,
+      },
+    })
+    return NextResponse.json(subject, { status: 201 })
+  } catch (err: any) {
+    if (err?.code === 'P2002') {
+      return NextResponse.json({ error: 'A subject with this code already exists.' }, { status: 409 })
+    }
+    throw err
+  }
+}
+
 export async function PATCH(req: NextRequest) {
   const session = await getServerSession(authOptions)
   if ((session?.user as any)?.role !== 'ADMIN') {

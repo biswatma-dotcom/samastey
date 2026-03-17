@@ -99,6 +99,7 @@ model Concept {
   contents         ConceptContent[]
   materials        ConceptMaterial[]
   estimatedMinutes Int                 @default(30)
+  isActive         Boolean             @default(true)
 }
 
 model ConceptMaterial {

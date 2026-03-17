@@ -40,6 +40,16 @@ interface ConceptWithMaterials {
   materials: ConceptMaterialItem[]
 }
 
+interface ConceptRow {
+  id: string
+  title: string
+  description: string
+  orderIndex: number
+  isActive: boolean
+  estimatedMinutes: number
+  _count: { materials: number; questions: number; contents: number }
+}
+
 function StatusBadge({ count }: { count: number }) {
   if (count === 0) return <span className="rounded-full bg-red-500/15 px-2 py-0.5 text-xs font-medium text-red-400">Not seeded</span>
   return <span className="rounded-full bg-green-500/15 px-2 py-0.5 text-xs font-medium text-green-400">{count} concepts</span>
@@ -159,14 +169,14 @@ function MaterialsPanel({ subjectId, onClose }: { subjectId: string; onClose: ()
         <p className="text-xs text-gray-500">No concepts found for this subject.</p>
       ) : (
         <div className="space-y-3">
-          {concepts.map((concept) => {
+          {concepts.map((concept, i) => {
             const hasMaterial = concept.materials.length > 0
             const isEditing = form?.conceptId === concept.id
             return (
               <div key={concept.id} className="rounded-lg border border-gray-800 bg-gray-950 p-3">
                 <div className="flex items-center justify-between gap-2 flex-wrap">
                   <div className="flex items-center gap-2">
-                    <span className="text-xs font-medium text-gray-300">{concept.orderIndex + 1}. {concept.title}</span>
+                    <span className="text-xs font-medium text-gray-300">{i + 1}. {concept.title}</span>
                     {hasMaterial
                       ? <span className="rounded-full bg-green-500/15 px-2 py-0.5 text-xs text-green-400">Has material</span>
                       : <span className="rounded-full bg-gray-700/50 px-2 py-0.5 text-xs text-gray-500">No material</span>
@@ -261,6 +271,293 @@ function MaterialsPanel({ subjectId, onClose }: { subjectId: string; onClose: ()
   )
 }
 
+interface TopicEditFormState {
+  id: string
+  title: string
+  description: string
+  estimatedMinutes: number
+}
+
+interface TopicAddFormState {
+  title: string
+  description: string
+  estimatedMinutes: number
+}
+
+function TopicsPanel({ subjectId, onClose }: { subjectId: string; onClose: () => void }) {
+  const [concepts, setConcepts] = useState<ConceptRow[]>([])
+  const [loading, setLoading] = useState(true)
+  const [toast, setToast] = useState<string | null>(null)
+  const [togglingId, setTogglingId] = useState<string | null>(null)
+  const [deletingId, setDeletingId] = useState<string | null>(null)
+  const [editForm, setEditForm] = useState<TopicEditFormState | null>(null)
+  const [savingEdit, setSavingEdit] = useState(false)
+  const [showAddForm, setShowAddForm] = useState(false)
+  const [addForm, setAddForm] = useState<TopicAddFormState>({ title: '', description: '', estimatedMinutes: 30 })
+  const [savingAdd, setSavingAdd] = useState(false)
+  const [addError, setAddError] = useState<string | null>(null)
+
+  function showToast(msg: string) {
+    setToast(msg)
+    setTimeout(() => setToast(null), 3000)
+  }
+
+  const loadConcepts = useCallback(async () => {
+    setLoading(true)
+    const res = await fetch(`/api/admin/concepts?subjectId=${subjectId}`)
+    const data = await res.json()
+    setConcepts(Array.isArray(data) ? data : [])
+    setLoading(false)
+  }, [subjectId])
+
+  useEffect(() => { loadConcepts() }, [loadConcepts])
+
+  async function toggleActive(concept: ConceptRow) {
+    setTogglingId(concept.id)
+    await fetch('/api/admin/concepts', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id: concept.id, isActive: !concept.isActive }),
+    })
+    setTogglingId(null)
+    await loadConcepts()
+  }
+
+  async function deleteConcept(id: string) {
+    if (!confirm('Delete this topic? This cannot be undone.')) return
+    setDeletingId(id)
+    await fetch('/api/admin/concepts', {
+      method: 'DELETE',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id }),
+    })
+    setDeletingId(null)
+    showToast('Topic deleted.')
+    await loadConcepts()
+  }
+
+  function openEditForm(concept: ConceptRow) {
+    setEditForm({ id: concept.id, title: concept.title, description: concept.description, estimatedMinutes: concept.estimatedMinutes })
+  }
+
+  async function saveEditForm() {
+    if (!editForm) return
+    setSavingEdit(true)
+    await fetch('/api/admin/concepts', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id: editForm.id, title: editForm.title, description: editForm.description, estimatedMinutes: editForm.estimatedMinutes }),
+    })
+    setSavingEdit(false)
+    setEditForm(null)
+    showToast('Topic updated.')
+    await loadConcepts()
+  }
+
+  async function saveAddForm() {
+    if (!addForm.title.trim() || !addForm.description.trim()) return
+    setSavingAdd(true)
+    setAddError(null)
+    try {
+      const res = await fetch('/api/admin/concepts', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ subjectId, title: addForm.title, description: addForm.description, estimatedMinutes: addForm.estimatedMinutes }),
+      })
+      if (!res.ok) {
+        const data = await res.json()
+        setAddError(data.error ?? 'Failed to add topic.')
+        return
+      }
+      setShowAddForm(false)
+      setAddForm({ title: '', description: '', estimatedMinutes: 30 })
+      showToast('Topic added.')
+      await loadConcepts()
+    } finally {
+      setSavingAdd(false)
+    }
+  }
+
+  return (
+    <div className="mt-2 rounded-xl border border-blue-500/30 bg-gray-900 p-5">
+      <div className="flex items-center justify-between mb-4">
+        <h3 className="text-sm font-semibold text-blue-400">
+          Topics {!loading && <span className="text-gray-500 font-normal">({concepts.length})</span>}
+        </h3>
+        <div className="flex items-center gap-3">
+          <button
+            onClick={() => { setShowAddForm(!showAddForm); setEditForm(null) }}
+            className="rounded-lg bg-blue-500/15 px-3 py-1 text-xs font-medium text-blue-400 hover:bg-blue-500/25 transition-colors"
+          >
+            + Add Topic
+          </button>
+          <button onClick={onClose} className="text-xs text-gray-500 hover:text-gray-300">Close</button>
+        </div>
+      </div>
+
+      {toast && (
+        <div className="mb-3 rounded-lg bg-green-500/15 px-3 py-2 text-xs text-green-400">{toast}</div>
+      )}
+
+      {loading ? (
+        <p className="text-xs text-gray-500">Loading...</p>
+      ) : concepts.length === 0 ? (
+        <p className="text-xs text-gray-500">No topics found for this subject.</p>
+      ) : (
+        <div className="space-y-2">
+          {concepts.map((concept, i) => {
+            const isEditing = editForm?.id === concept.id
+            return (
+              <div key={concept.id} className="rounded-lg border border-gray-800 bg-gray-950 p-3">
+                <div className="flex items-center justify-between gap-2 flex-wrap">
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs font-medium text-gray-300">{i + 1}. {concept.title}</span>
+                    <span className="text-xs text-gray-600">{concept.estimatedMinutes} min</span>
+                    {concept.isActive
+                      ? <span className="rounded-full bg-green-500/15 px-2 py-0.5 text-xs text-green-400">Active</span>
+                      : <span className="rounded-full bg-gray-700/50 px-2 py-0.5 text-xs text-gray-500">Inactive</span>
+                    }
+                  </div>
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <ActiveToggle
+                      isActive={concept.isActive}
+                      onChange={() => toggleActive(concept)}
+                      disabled={togglingId === concept.id}
+                    />
+                    {!isEditing && (
+                      <button
+                        onClick={() => openEditForm(concept)}
+                        className="rounded-lg bg-blue-500/10 px-2.5 py-1 text-xs font-medium text-blue-400 hover:bg-blue-500/20 transition-colors"
+                      >
+                        Edit
+                      </button>
+                    )}
+                    <button
+                      onClick={() => deleteConcept(concept.id)}
+                      disabled={deletingId === concept.id}
+                      className="rounded-lg bg-red-500/10 px-2.5 py-1 text-xs font-medium text-red-400 hover:bg-red-500/20 disabled:opacity-40 transition-colors"
+                    >
+                      {deletingId === concept.id ? '...' : 'Delete'}
+                    </button>
+                  </div>
+                </div>
+
+                {isEditing && editForm && (
+                  <div className="mt-3 space-y-2.5 border-t border-gray-800 pt-3">
+                    <div>
+                      <label className="mb-1 block text-xs text-gray-500">Title</label>
+                      <input
+                        value={editForm.title}
+                        onChange={(e) => setEditForm({ ...editForm, title: e.target.value })}
+                        className="w-full rounded-lg border border-gray-700 bg-gray-900 px-3 py-1.5 text-xs text-white focus:border-blue-500 focus:outline-none"
+                      />
+                    </div>
+                    <div>
+                      <label className="mb-1 block text-xs text-gray-500">Description</label>
+                      <textarea
+                        value={editForm.description}
+                        onChange={(e) => setEditForm({ ...editForm, description: e.target.value })}
+                        rows={3}
+                        className="w-full rounded-lg border border-gray-700 bg-gray-900 px-3 py-1.5 text-xs text-white focus:border-blue-500 focus:outline-none resize-y"
+                      />
+                    </div>
+                    <div>
+                      <label className="mb-1 block text-xs text-gray-500">Estimated Minutes</label>
+                      <input
+                        type="number"
+                        value={editForm.estimatedMinutes}
+                        onChange={(e) => setEditForm({ ...editForm, estimatedMinutes: parseInt(e.target.value) || 30 })}
+                        className="w-24 rounded-lg border border-gray-700 bg-gray-900 px-3 py-1.5 text-xs text-white focus:border-blue-500 focus:outline-none"
+                      />
+                    </div>
+                    <div className="flex gap-2">
+                      <button
+                        onClick={saveEditForm}
+                        disabled={savingEdit || !editForm.title.trim()}
+                        className="rounded-lg bg-blue-500 px-3 py-1.5 text-xs font-medium text-white hover:bg-blue-600 disabled:opacity-40 transition-colors"
+                      >
+                        {savingEdit ? 'Saving...' : 'Save'}
+                      </button>
+                      <button
+                        onClick={() => setEditForm(null)}
+                        disabled={savingEdit}
+                        className="rounded-lg bg-gray-800 px-3 py-1.5 text-xs font-medium text-gray-400 hover:bg-gray-700 transition-colors"
+                      >
+                        Cancel
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
+            )
+          })}
+        </div>
+      )}
+
+      {/* Add Topic Form */}
+      {showAddForm && (
+        <div className="mt-4 rounded-lg border border-blue-500/20 bg-gray-950 p-4 space-y-3">
+          <p className="text-xs font-semibold text-blue-400">New Topic</p>
+          {addError && (
+            <div className="rounded-lg bg-red-500/15 px-3 py-2 text-xs text-red-400">{addError}</div>
+          )}
+          <div>
+            <label className="mb-1 block text-xs text-gray-500">Title <span className="text-red-400">*</span></label>
+            <input
+              value={addForm.title}
+              onChange={(e) => setAddForm({ ...addForm, title: e.target.value })}
+              className="w-full rounded-lg border border-gray-700 bg-gray-900 px-3 py-1.5 text-xs text-white focus:border-blue-500 focus:outline-none"
+              placeholder="e.g. Introduction to Algebra"
+            />
+          </div>
+          <div>
+            <label className="mb-1 block text-xs text-gray-500">Description <span className="text-red-400">*</span></label>
+            <textarea
+              value={addForm.description}
+              onChange={(e) => setAddForm({ ...addForm, description: e.target.value })}
+              rows={3}
+              className="w-full rounded-lg border border-gray-700 bg-gray-900 px-3 py-1.5 text-xs text-white focus:border-blue-500 focus:outline-none resize-y"
+              placeholder="Brief description of this topic..."
+            />
+          </div>
+          <div>
+            <label className="mb-1 block text-xs text-gray-500">Estimated Minutes</label>
+            <input
+              type="number"
+              value={addForm.estimatedMinutes}
+              onChange={(e) => setAddForm({ ...addForm, estimatedMinutes: parseInt(e.target.value) || 30 })}
+              className="w-24 rounded-lg border border-gray-700 bg-gray-900 px-3 py-1.5 text-xs text-white focus:border-blue-500 focus:outline-none"
+            />
+          </div>
+          <div className="flex gap-2">
+            <button
+              onClick={saveAddForm}
+              disabled={savingAdd || !addForm.title.trim() || !addForm.description.trim()}
+              className="rounded-lg bg-blue-500 px-3 py-1.5 text-xs font-medium text-white hover:bg-blue-600 disabled:opacity-40 transition-colors"
+            >
+              {savingAdd ? 'Saving...' : 'Save'}
+            </button>
+            <button
+              onClick={() => { setShowAddForm(false); setAddError(null) }}
+              disabled={savingAdd}
+              className="rounded-lg bg-gray-800 px-3 py-1.5 text-xs font-medium text-gray-400 hover:bg-gray-700 transition-colors"
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
+interface AddSubjectFormState {
+  name: string
+  code: string
+  grade: string
+  board: string
+}
+
 export function SubjectsManager() {
   const [subjects, setSubjects] = useState<SubjectRow[]>([])
   const [loading, setLoading] = useState(false)
@@ -281,6 +578,15 @@ export function SubjectsManager() {
 
   // Materials panel
   const [materialsSubjectId, setMaterialsSubjectId] = useState<string | null>(null)
+
+  // Topics panel
+  const [topicsSubjectId, setTopicsSubjectId] = useState<string | null>(null)
+
+  // Add Subject form
+  const [showAddSubjectForm, setShowAddSubjectForm] = useState(false)
+  const [addSubjectForm, setAddSubjectForm] = useState<AddSubjectFormState>({ name: '', code: '', grade: '', board: 'CBSE' })
+  const [savingSubject, setSavingSubject] = useState(false)
+  const [addSubjectError, setAddSubjectError] = useState<string | null>(null)
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -359,6 +665,47 @@ export function SubjectsManager() {
     load()
   }
 
+  async function submitAddSubject() {
+    if (!addSubjectForm.name.trim() || !addSubjectForm.code.trim() || !addSubjectForm.grade || !addSubjectForm.board) return
+    setSavingSubject(true)
+    setAddSubjectError(null)
+    try {
+      const res = await fetch('/api/admin/subjects', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(addSubjectForm),
+      })
+      const data = await res.json()
+      if (!res.ok) {
+        setAddSubjectError(data.error ?? 'Failed to create subject.')
+        return
+      }
+      setShowAddSubjectForm(false)
+      setAddSubjectForm({ name: '', code: '', grade: '', board: 'CBSE' })
+      await load()
+    } finally {
+      setSavingSubject(false)
+    }
+  }
+
+  function handleMaterialsClick(subjectId: string) {
+    if (materialsSubjectId === subjectId) {
+      setMaterialsSubjectId(null)
+    } else {
+      setMaterialsSubjectId(subjectId)
+      setTopicsSubjectId(null)
+    }
+  }
+
+  function handleTopicsClick(subjectId: string) {
+    if (topicsSubjectId === subjectId) {
+      setTopicsSubjectId(null)
+    } else {
+      setTopicsSubjectId(subjectId)
+      setMaterialsSubjectId(null)
+    }
+  }
+
   const unseeded = subjects.filter((s) => s.conceptCount === 0)
   const seeded = subjects.filter((s) => s.conceptCount > 0)
 
@@ -381,7 +728,85 @@ export function SubjectsManager() {
           <span className="rounded-full bg-green-500/10 px-2 py-1 text-green-400">{seeded.length} seeded</span>
           <span className="rounded-full bg-red-500/10 px-2 py-1 text-red-400">{unseeded.length} pending</span>
         </div>
+        <div className="ml-auto">
+          <button
+            onClick={() => { setShowAddSubjectForm(!showAddSubjectForm); setAddSubjectError(null) }}
+            className="rounded-lg bg-orange-500/15 px-3 py-2 text-xs font-medium text-orange-400 hover:bg-orange-500/25 transition-colors"
+          >
+            + Add Subject
+          </button>
+        </div>
       </div>
+
+      {/* Add Subject Form */}
+      {showAddSubjectForm && (
+        <div className="rounded-xl border border-orange-500/30 bg-gray-900 p-5 space-y-4">
+          <p className="text-sm font-semibold text-orange-400">New Subject</p>
+          {addSubjectError && (
+            <div className="rounded-lg bg-red-500/15 px-3 py-2 text-xs text-red-400">{addSubjectError}</div>
+          )}
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+            <div>
+              <label className="mb-1 block text-xs text-gray-500">Name <span className="text-red-400">*</span></label>
+              <input
+                value={addSubjectForm.name}
+                onChange={(e) => setAddSubjectForm({ ...addSubjectForm, name: e.target.value })}
+                className="w-full rounded-lg border border-gray-700 bg-gray-950 px-3 py-2 text-sm text-white focus:border-orange-500 focus:outline-none"
+                placeholder="e.g. Mathematics"
+              />
+            </div>
+            <div>
+              <label className="mb-1 block text-xs text-gray-500">Code <span className="text-red-400">*</span></label>
+              <input
+                value={addSubjectForm.code}
+                onChange={(e) => setAddSubjectForm({ ...addSubjectForm, code: e.target.value })}
+                className="w-full rounded-lg border border-gray-700 bg-gray-950 px-3 py-2 text-sm text-white focus:border-orange-500 focus:outline-none"
+                placeholder="e.g. CBSE-MATH-9"
+              />
+            </div>
+            <div>
+              <label className="mb-1 block text-xs text-gray-500">Grade <span className="text-red-400">*</span></label>
+              <select
+                value={addSubjectForm.grade}
+                onChange={(e) => setAddSubjectForm({ ...addSubjectForm, grade: e.target.value })}
+                className="w-full rounded-lg border border-gray-700 bg-gray-950 px-3 py-2 text-sm text-white focus:border-orange-500 focus:outline-none"
+              >
+                <option value="">Select grade</option>
+                {Array.from({ length: 12 }, (_, i) => i + 1).map((g) => (
+                  <option key={g} value={g}>Class {g}</option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label className="mb-1 block text-xs text-gray-500">Board <span className="text-red-400">*</span></label>
+              <select
+                value={addSubjectForm.board}
+                onChange={(e) => setAddSubjectForm({ ...addSubjectForm, board: e.target.value })}
+                className="w-full rounded-lg border border-gray-700 bg-gray-950 px-3 py-2 text-sm text-white focus:border-orange-500 focus:outline-none"
+              >
+                <option value="CBSE">CBSE</option>
+                <option value="ICSE">ICSE</option>
+              </select>
+            </div>
+          </div>
+          <div className="flex gap-2">
+            <button
+              onClick={submitAddSubject}
+              disabled={savingSubject || !addSubjectForm.name.trim() || !addSubjectForm.code.trim() || !addSubjectForm.grade}
+              className="rounded-lg bg-orange-500 px-4 py-2 text-xs font-medium text-white hover:bg-orange-600 disabled:opacity-40 transition-colors"
+            >
+              {savingSubject ? 'Creating...' : 'Create Subject'}
+            </button>
+            <button
+              onClick={() => { setShowAddSubjectForm(false); setAddSubjectError(null) }}
+              disabled={savingSubject}
+              className="rounded-lg bg-gray-800 px-4 py-2 text-xs font-medium text-gray-400 hover:bg-gray-700 transition-colors"
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Seed progress modal */}
       {(seedingId || seedLogs.length > 0) && (
@@ -502,16 +927,31 @@ export function SubjectsManager() {
                         </>
                       )}
                       {s.conceptCount > 0 && (
-                        <button
-                          onClick={() => setMaterialsSubjectId(materialsSubjectId === s.id ? null : s.id)}
-                          className={`rounded-lg px-3 py-1.5 text-xs font-medium transition-colors ${materialsSubjectId === s.id ? 'bg-orange-500/30 text-orange-300' : 'bg-gray-800 text-gray-400 hover:bg-gray-700'}`}
-                        >
-                          Materials{s.materialCount > 0 ? ` (${s.materialCount})` : ''}
-                        </button>
+                        <>
+                          <button
+                            onClick={() => handleTopicsClick(s.id)}
+                            className={`rounded-lg px-3 py-1.5 text-xs font-medium transition-colors ${topicsSubjectId === s.id ? 'bg-blue-500/30 text-blue-300' : 'bg-gray-800 text-gray-400 hover:bg-gray-700'}`}
+                          >
+                            Topics ({s.conceptCount})
+                          </button>
+                          <button
+                            onClick={() => handleMaterialsClick(s.id)}
+                            className={`rounded-lg px-3 py-1.5 text-xs font-medium transition-colors ${materialsSubjectId === s.id ? 'bg-orange-500/30 text-orange-300' : 'bg-gray-800 text-gray-400 hover:bg-gray-700'}`}
+                          >
+                            Materials{s.materialCount > 0 ? ` (${s.materialCount})` : ''}
+                          </button>
+                        </>
                       )}
                     </div>
                   </td>
                 </tr>
+                {topicsSubjectId === s.id && (
+                  <tr key={`${s.id}-topics`}>
+                    <td colSpan={8} className="px-4 pb-4">
+                      <TopicsPanel subjectId={s.id} onClose={() => setTopicsSubjectId(null)} />
+                    </td>
+                  </tr>
+                )}
                 {materialsSubjectId === s.id && (
                   <tr key={`${s.id}-materials`}>
                     <td colSpan={8} className="px-4 pb-4">

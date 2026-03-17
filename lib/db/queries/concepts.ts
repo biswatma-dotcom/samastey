@@ -14,7 +14,7 @@ export async function getConceptById(id: string) {
 
 export async function getConceptsBySubject(subjectId: string) {
   return prisma.concept.findMany({
-    where: { subjectId },
+    where: { subjectId, isActive: true },
     orderBy: { orderIndex: 'asc' },
     include: {
       objectives: { orderBy: { orderIndex: 'asc' } },
